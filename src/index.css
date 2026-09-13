@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@plugin "daisyui";
+
+@theme {
+  --font-playfair: 'Playfair Display', serif;
+  --color-brand: #163A2D;
+}
