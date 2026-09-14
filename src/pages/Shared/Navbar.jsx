@@ -1,150 +1,128 @@
-
-import { useState } from "react";
+import React from "react";
 import { NavLink } from "react-router-dom";
-import { Menu, X } from "lucide-react";
+import {
+  Users,
+  Award,
+  Trophy,
+  Briefcase,
+  History,
+  Wrench,
+  Boxes,
+  BookOpen,
+  Library,
+  GraduationCap,
+  School,
+  Image,
+  FolderKanban,
+  UserCheck,
+  Contact,
+} from "lucide-react";
 
-const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  // Admin Navigation Items - Same as your existing Navbar
+const Navbar = ({ isOpen, setIsOpen }) => {
   const navItems = [
-    { id: "add-award", label: "Add Award", path: "/award" },
-    { id: "all-award", label: "All Award", path: "/admin/all-awards" },
+    { id: "users", label: "Users", icon: Users, path: "/admin/all-users" },
 
-    { id: "add-experience", label: "Add Experience", path: "/experience" },
-    {
-      id: "all-experience",
-      label: "All Experience",
-      path: "/admin/all-experiences",
-    },
+    { id: "add-award", label: "Add Award", icon: Award, path: "/award" },
+    { id: "all-award", label: "All Award", icon: Trophy, path: "/admin/all-awards" },
 
-    { id: "add-tools", label: "Add Tools", path: "/tools" },
-    { id: "all-tools", label: "All Tools", path: "/admin/all-tools" },
+    { id: "add-experience", label: "Add Experience", icon: Briefcase, path: "/experience" },
+    { id: "all-experience", label: "All Experience", icon: History, path: "/admin/all-experiences" },
 
-    { id: "add-research", label: "Add Research", path: "/research" },
-    {
-      id: "all-research",
-      label: "All Research",
-      path: "/admin/all-research",
-    },
+    { id: "add-tools", label: "Add Tools", icon: Wrench, path: "/tools" },
+    { id: "all-tools", label: "All Tools", icon: Boxes, path: "/admin/all-tools" },
 
-    { id: "add-courses", label: "Add Courses", path: "/courses" },
-    {
-      id: "all-courses",
-      label: "All Courses",
-      path: "/admin/all-courses",
-    },
+    { id: "add-research", label: "Add Research", icon: BookOpen, path: "/research" },
+    { id: "all-research", label: "All Research", icon: Library, path: "/admin/all-research" },
 
-    { id: "add-academic", label: "Add Academic", path: "/academic" },
-    {
-      id: "all-academics",
-      label: "All Academics",
-      path: "/admin/all-academics",
-    },
+    { id: "add-courses", label: "Add Courses", icon: GraduationCap, path: "/courses" },
+    { id: "all-courses", label: "All Courses", icon: School, path: "/admin/all-courses" },
 
-    { id: "add-gallery", label: "Add Gallery", path: "/gallery" },
-    {
-      id: "all-gallery",
-      label: "All Gallery",
-      path: "/admin/all-gallery",
-    },
+    { id: "add-academic", label: "Add Academic", icon: GraduationCap, path: "/academic" },
+    { id: "all-academics", label: "All Academics", icon: School, path: "/admin/all-academics" },
 
-    { id: "add-referees", label: "Add Referees", path: "/referees" },
-    {
-      id: "all-referees",
-      label: "All Referees",
-      path: "/admin/all-referees",
-    },
+    { id: "add-gallery", label: "Add Gallery", icon: Image, path: "/gallery" },
+    { id: "all-gallery", label: "All Gallery", icon: FolderKanban, path: "/admin/all-gallery" },
+
+    { id: "add-referees", label: "Add Referees", icon: UserCheck, path: "/referees" },
+    { id: "all-referees", label: "All Referees", icon: Contact, path: "/admin/all-referees" },
   ];
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-[#163A2D] text-white shadow-lg backdrop-blur-md font-['Playfair_Display',serif]">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-20">
-        <div className="flex items-center justify-between h-16 sm:h-20">
-
-          {/* ==================== BRAND ==================== */}
-          <div className="flex-shrink-0">
-            <NavLink
-              to="/"
-              className="text-lg sm:text-2xl font-bold tracking-wide hover:text-emerald-200 transition-colors duration-200"
-            >
-              Ramen Kumar Das
-            </NavLink>
-          </div>
-
-          {/* ==================== DESKTOP NAVIGATION ==================== */}
-          <div className="hidden lg:flex items-center space-x-1 xl:space-x-2 text-sm overflow-x-auto max-w-[75vw] scrollbar-none py-2">
-
-            {navItems.map((item) => (
-              <NavLink
-                key={item.id}
-                to={item.path}
-                end={item.path === "/"}
-                className={({ isActive }) => `
-                  px-3 py-2 rounded-md font-medium transition-all duration-200 whitespace-nowrap
-                  ${
-                    isActive
-                      ? "text-white font-bold border-b-2 border-emerald-400 bg-white/10"
-                      : item.id.startsWith("all-")
-                      ? "text-amber-300 hover:text-white hover:bg-white/10"
-                      : "text-gray-200 hover:text-white hover:bg-white/5"
-                  }
-                `}
-              >
-                {item.label}
-              </NavLink>
-            ))}
-
-          </div>
-
-          {/* ==================== MOBILE MENU BUTTON ==================== */}
-          <div className="flex lg:hidden">
-            <button
-              onClick={() => setIsOpen((prev) => !prev)}
-              type="button"
-              className="p-2 rounded-md text-gray-200 hover:text-white hover:bg-[#123025] focus:outline-none cursor-pointer"
-              aria-label="Toggle Menu"
-              aria-expanded={isOpen}
-            >
-              {isOpen ? (
-                <X className="w-6 h-6" />
-              ) : (
-                <Menu className="w-6 h-6" />
-              )}
-            </button>
-          </div>
-
-        </div>
-      </div>
-
-      {/* ==================== MOBILE MENU ==================== */}
+    <>
+      {/* MOBILE OVERLAY */}
       {isOpen && (
-        <div className="lg:hidden bg-[#123025] border-t border-emerald-800/50 px-4 pt-2 pb-6 space-y-1 transition-all duration-300 max-h-[75vh] overflow-y-auto">
+        <div
+          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 lg:hidden"
+        />
+      )}
 
-          {navItems.map((item) => (
+      {/* SIDE NAVIGATION */}
+      <aside
+        className={`
+          fixed z-50 transition-all duration-300 ease-in-out
+          top-20 right-4 left-4 flex flex-col p-2.5
+          bg-[#163A2D]/95 backdrop-blur-xl border border-emerald-800/60 rounded-2xl shadow-2xl gap-1.5 
+          max-h-[75vh] overflow-y-auto scrollbar-none
+
+          lg:left-auto lg:top-1/2 lg:right-5 lg:-translate-y-1/2 lg:w-auto lg:items-end lg:gap-1.5 lg:bg-transparent lg:border-none lg:p-0 lg:shadow-none lg:backdrop-blur-none lg:max-h-[88vh] lg:overflow-y-auto lg:pr-1
+
+          ${
+            isOpen
+              ? "opacity-100 scale-100 pointer-events-auto"
+              : "opacity-0 scale-95 pointer-events-none lg:opacity-100 lg:scale-100 lg:pointer-events-auto"
+          }
+        `}
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+
+          return (
             <NavLink
               key={item.id}
               to={item.path}
               end={item.path === "/"}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) => `
-                block px-3 py-2.5 rounded-md text-base font-medium transition-colors duration-200
+                group relative flex items-center transition-all duration-300 ease-in-out w-full lg:w-auto
+
                 ${
                   isActive
-                    ? "bg-emerald-900/60 text-white font-bold border-l-4 border-emerald-400 pl-4"
-                    : item.id.startsWith("all-")
-                    ? "text-amber-300 hover:bg-white/5 hover:text-white"
-                    : "text-gray-200 hover:bg-white/5 hover:text-white"
+                    ? `bg-[#0C2219] text-white font-semibold px-3.5 py-2 rounded-xl border border-emerald-500/40 shadow-md justify-start lg:justify-center`
+                    : `text-emerald-100 hover:text-white hover:bg-emerald-900/60 p-2 rounded-xl lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center`
                 }
               `}
             >
-              {item.label}
-            </NavLink>
-          ))}
+              {({ isActive }) => (
+                <>
+                  <Icon
+                    className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 ${
+                      isActive ? "text-emerald-400 stroke-[2.5]" : "text-emerald-100 stroke-2"
+                    }`}
+                  />
 
-        </div>
-      )}
-    </nav>
+                  {/* Responsive Label */}
+                  <span
+                    className={`ml-3 text-sm whitespace-nowrap tracking-wide font-['Playfair_Display',serif] ${
+                      isActive ? "inline-block text-emerald-300 font-bold" : "inline-block lg:hidden text-white"
+                    }`}
+                  >
+                    {item.label}
+                  </span>
+
+                  {/* Desktop Hover Tooltip */}
+                  {!isActive && (
+                    <span className="hidden lg:block absolute right-14 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-white text-xs py-1.5 px-3 rounded-lg border border-emerald-700/60 whitespace-nowrap shadow-xl font-['Playfair_Display',serif]">
+                      {item.label}
+                    </span>
+                  )}
+                </>
+              )}
+            </NavLink>
+          );
+        })}
+      </aside>
+    </>
   );
 };
 

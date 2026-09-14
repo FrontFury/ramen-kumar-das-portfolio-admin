@@ -16,12 +16,14 @@ import AddResearch from "../pages/Research/AddResearch";
 import AllResearch from "../pages/Research/AllResearch";
 import AddTools from "../pages/Tools/AddTools";
 import AllTools from "../pages/Tools/AllTools";
+import Users from "../pages/Users/Users";
 
 export const router = createBrowserRouter([
   {
     path: "/",
     element: <AdminLayout />,
     children: [
+      { path: "admin/all-users", element: <Users></Users> },
       { path: "award", element: <AddAward /> },
       { path: "admin/all-awards", element: <AllAwards /> },
       { path: "experience", element: <AddExperience /> },
