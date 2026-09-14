@@ -16,10 +16,12 @@ import {
   FolderKanban,
   UserCheck,
   Contact,
+  LogOut,
 } from "lucide-react";
 
-const Navbar = ({ isOpen, setIsOpen }) => {
+const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
   const navItems = [
+    { id: "login", label: "Login", icon: Users, path: "/login" },
     { id: "users", label: "Users", icon: Users, path: "/admin/all-users" },
 
     { id: "add-award", label: "Add Award", icon: Award, path: "/award" },
@@ -121,6 +123,27 @@ const Navbar = ({ isOpen, setIsOpen }) => {
             </NavLink>
           );
         })}
+
+        {/* LOGOUT BUTTON */}
+        <button
+          onClick={() => {
+            setIsOpen(false);
+            handleLogout();
+          }}
+          className="group relative flex items-center transition-all duration-300 ease-in-out w-full lg:w-auto p-2 rounded-xl text-red-200 hover:text-white hover:bg-red-900/60 lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center cursor-pointer"
+        >
+          <LogOut className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-red-400 stroke-2" />
+
+          {/* Label for Mobile Menu */}
+          <span className="ml-3 text-sm whitespace-nowrap tracking-wide font-['Playfair_Display',serif] inline-block lg:hidden font-bold text-red-300">
+            Logout
+          </span>
+
+          {/* Desktop Hover Tooltip */}
+          <span className="hidden lg:block absolute right-14 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-white text-xs py-1.5 px-3 rounded-lg border border-emerald-700/60 whitespace-nowrap shadow-xl font-['Playfair_Display',serif]">
+            Logout
+          </span>
+        </button>
       </aside>
     </>
   );

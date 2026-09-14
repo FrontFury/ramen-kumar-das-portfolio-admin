@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Outlet, NavLink } from "react-router-dom";
+import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Navbar from "../pages/Shared/Navbar";
 import { Leaf, TreePine, Sparkles, Microscope, Menu, X } from "lucide-react";
@@ -16,6 +16,14 @@ const floatingNatureIcons = [
 
 export const AdminLayout = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
+
+  // Logout Handler
+  const handleLogout = () => {
+    // TODO: Clear Auth Token / State Here
+    console.log("Logged out successfully");
+    navigate("/login");
+  };
 
   return (
     <div className="relative min-h-screen bg-[#F8FAFC] text-zinc-800 flex flex-col justify-between selection:bg-emerald-600 selection:text-white font-['Playfair_Display',serif] overflow-hidden">
@@ -67,7 +75,7 @@ export const AdminLayout = () => {
         })}
       </div>
 
-      {/* BRAND HEADER (Menu button visually vertically centered) */}
+      {/* BRAND HEADER */}
       <header className="relative z-30 w-full bg-[#163A2D] lg:bg-white/40 lg:backdrop-blur-md border-b border-emerald-900/40 lg:border-emerald-100/60 transition-colors duration-300">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <NavLink
@@ -77,7 +85,7 @@ export const AdminLayout = () => {
             Ramen Kumar Das
           </NavLink>
 
-          {/* MOBILE HAMBURGER BUTTON (Vertically centered automatically) */}
+          {/* MOBILE HAMBURGER BUTTON */}
           <button
             onClick={() => setIsOpen((prev) => !prev)}
             className="p-2 bg-[#0C2219] text-white rounded-xl shadow-lg border border-emerald-700/50 active:scale-95 transition-transform lg:hidden cursor-pointer flex items-center justify-center"
@@ -93,7 +101,7 @@ export const AdminLayout = () => {
       </header>
 
       {/* Side Navigation Bar */}
-      <Navbar isOpen={isOpen} setIsOpen={setIsOpen} />
+      <Navbar isOpen={isOpen} setIsOpen={setIsOpen} handleLogout={handleLogout} />
 
       {/* Main Outlet Container */}
       <main className="relative z-10 flex-grow max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:pr-20 py-8">

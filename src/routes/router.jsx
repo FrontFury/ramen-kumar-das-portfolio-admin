@@ -1,45 +1,139 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, redirect } from "react-router-dom";
+
 import { AdminLayout } from "../layout/AdminLayout";
+import ProtectedRoute from "./ProtectedRoute";
+
+import Login from "../pages/Auth/Login";
+import Register from "../pages/Auth/Register";
+
 import AddAcademic from "../pages/Academic/AddAcademic";
 import AllAcademics from "../pages/Academic/AllAcademics";
+
 import AddAward from "../pages/Award/AddAward";
 import AllAwards from "../pages/Award/AllAwards";
+
 import AddCourses from "../pages/Courses/AddCourses";
 import AllCourses from "../pages/Courses/AllCourses";
+
 import AddExperience from "../pages/Experience/AddExperience";
 import AllExperiences from "../pages/Experience/AllExperiences";
+
 import AddGallery from "../pages/Gallery/AddGallery";
 import AllGallery from "../pages/Gallery/AllGallery";
+
 import AddReferees from "../pages/Referees/AddReferees";
 import AllReferees from "../pages/Referees/AllReferees";
+
 import AddResearch from "../pages/Research/AddResearch";
 import AllResearch from "../pages/Research/AllResearch";
+
 import AddTools from "../pages/Tools/AddTools";
 import AllTools from "../pages/Tools/AllTools";
+
 import Users from "../pages/Users/Users";
 
 export const router = createBrowserRouter([
+  // Public routes
   {
-    path: "/",
-    element: <AdminLayout />,
+    path: "/login",
+    element: <Login />,
+  },
+  {
+    path: "/register",
+    element: <Register />,
+  },
+
+  // Protected routes
+  {
+    element: <ProtectedRoute />,
     children: [
-      { path: "admin/all-users", element: <Users></Users> },
-      { path: "award", element: <AddAward /> },
-      { path: "admin/all-awards", element: <AllAwards /> },
-      { path: "experience", element: <AddExperience /> },
-      { path: "admin/all-experiences", element: <AllExperiences /> },
-      { path: "tools", element: <AddTools /> },
-      { path: "admin/all-tools", element: <AllTools /> },
-      { path: "research", element: <AddResearch /> },
-      { path: "admin/all-research", element: <AllResearch /> },
-      { path: "courses", element: <AddCourses /> },
-      { path: "admin/all-courses", element: <AllCourses /> },
-      { path: "academic", element: <AddAcademic /> },
-      { path: "admin/all-academics", element: <AllAcademics /> },
-      { path: "gallery", element: <AddGallery /> },
-      { path: "admin/all-gallery", element: <AllGallery /> },
-      { path: "referees", element: <AddReferees /> },
-      { path: "admin/all-referees", element: <AllReferees /> },
+      {
+        path: "/",
+        element: <AdminLayout />,
+        children: [
+          {
+            index: true,
+            loader: () => redirect("/users"),
+          },
+
+          {
+            path: "academic/add",
+            element: <AddAcademic />,
+          },
+          {
+            path: "academic/all",
+            element: <AllAcademics />,
+          },
+
+          {
+            path: "award/add",
+            element: <AddAward />,
+          },
+          {
+            path: "award/all",
+            element: <AllAwards />,
+          },
+
+          {
+            path: "courses/add",
+            element: <AddCourses />,
+          },
+          {
+            path: "courses/all",
+            element: <AllCourses />,
+          },
+
+          {
+            path: "experience/add",
+            element: <AddExperience />,
+          },
+          {
+            path: "experience/all",
+            element: <AllExperiences />,
+          },
+
+          {
+            path: "gallery/add",
+            element: <AddGallery />,
+          },
+          {
+            path: "gallery/all",
+            element: <AllGallery />,
+          },
+
+          {
+            path: "referees/add",
+            element: <AddReferees />,
+          },
+          {
+            path: "referees/all",
+            element: <AllReferees />,
+          },
+
+          {
+            path: "research/add",
+            element: <AddResearch />,
+          },
+          {
+            path: "research/all",
+            element: <AllResearch />,
+          },
+
+          {
+            path: "tools/add",
+            element: <AddTools />,
+          },
+          {
+            path: "tools/all",
+            element: <AllTools />,
+          },
+
+          {
+            path: "users",
+            element: <Users />,
+          },
+        ],
+      },
     ],
   },
 ]);
