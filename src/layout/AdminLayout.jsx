@@ -3,6 +3,7 @@ import { Outlet, NavLink, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import Navbar from "../pages/Shared/Navbar";
 import { Leaf, TreePine, Sparkles, Microscope, Menu, X } from "lucide-react";
+import { Toaster } from "react-hot-toast";
 
 const floatingNatureIcons = [
   { Icon: Leaf, top: "15%", left: "3%", size: 32, color: "#10B981", delay: 0 },
@@ -28,6 +29,16 @@ export const AdminLayout = () => {
   return (
     <div className="relative min-h-screen bg-[#F8FAFC] text-zinc-800 flex flex-col justify-between selection:bg-emerald-600 selection:text-white font-['Playfair_Display',serif] overflow-hidden">
       
+      {/* Toast Notification Container with highest z-index & top margin */}
+      <Toaster 
+        position="top-center" 
+        reverseOrder={false}
+        containerStyle={{
+          top: 20,
+          zIndex: 99999, // নিশ্চিত করবে Toast সবসময় সবার উপরে থাকবে
+        }}
+      />
+
       {/* 1. Light Grid Overlay */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690a_1px,transparent_1px),linear-gradient(to_bottom,#0596690a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none z-0" />
 
@@ -75,8 +86,8 @@ export const AdminLayout = () => {
         })}
       </div>
 
-      {/* BRAND HEADER */}
-      <header className="relative z-30 w-full bg-[#163A2D] lg:bg-white/40 lg:backdrop-blur-md border-b border-emerald-900/40 lg:border-emerald-100/60 transition-colors duration-300">
+      {/* BRAND HEADER (z-index কমিয়ে z-20 করা হয়েছে) */}
+      <header className="relative z-20 w-full bg-[#163A2D] lg:bg-white/40 lg:backdrop-blur-md border-b border-emerald-900/40 lg:border-emerald-100/60 transition-colors duration-300">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <NavLink
             to="/"
