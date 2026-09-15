@@ -53,7 +53,7 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            loader: () => redirect("/users"),
+            loader: () => redirect("/admin/all-users"),
           },
 
           {
@@ -129,7 +129,7 @@ export const router = createBrowserRouter([
           },
 
           {
-            path: "users",
+            path: "/admin/all-users",
             element: <Users />,
           },
         ],

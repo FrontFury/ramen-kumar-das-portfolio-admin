@@ -9,7 +9,9 @@ import {
   Edit3, 
   XCircle,
   Loader2,
-  X
+  X,
+  AlertTriangle,
+  CheckCircle2
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
@@ -22,6 +24,11 @@ const Users = () => {
   // Modal State for Editing User
   const [editingUser, setEditingUser] = useState(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Modal States for Deleting User
+  const [deletingUser, setDeletingUser] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
 
   // Custom Toast Style Options
   const toastOptions = {
@@ -37,7 +44,7 @@ const Users = () => {
     },
   };
 
-  // 1. Fetch Users Data from Localhost API
+  // Fetch Users Data
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -59,11 +66,11 @@ const Users = () => {
     fetchUsers();
   }, []);
 
-  // 2. Delete User
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
-
-    const loadingToast = toast.loading("Deleting user...", toastOptions);
+  // Delete User Confirmation & Execution
+  const confirmDelete = async () => {
+    if (!deletingUser) return;
+    const id = deletingUser._id || deletingUser.id;
+    setIsDeleting(true);
 
     try {
       const response = await fetch(`http://localhost:3000/users/${id}`, {
@@ -74,16 +81,17 @@ const Users = () => {
 
       setUsers((prevUsers) => prevUsers.filter((user) => (user._id || user.id) !== id));
       
-      toast.dismiss(loadingToast);
-      toast.success("User deleted successfully! 🗑️", toastOptions);
+      setDeletingUser(null);
+      setShowDeleteSuccessModal(true);
     } catch (err) {
       console.error("Delete Error:", err);
-      toast.dismiss(loadingToast);
       toast.error("Failed to delete user!", toastOptions);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
-  // 3. Update User Handler (Sends lowercased role to DB)
+  // Update User Handler
   const handleUpdate = async (e) => {
     e.preventDefault();
     setIsUpdating(true);
@@ -100,16 +108,12 @@ const Users = () => {
         body: JSON.stringify({
           fullName: editingUser.fullName || editingUser.name,
           email: editingUser.email,
-          role: lowercasedRole, // Always converts role to lowercase
+          role: lowercasedRole,
         }),
       });
 
       if (!response.ok) throw new Error("Failed to update user");
 
-      const resData = await response.json();
-      console.log("Update Success:", resData);
-
-      // UI State update with lowercase role
       setUsers((prevUsers) =>
         prevUsers.map((u) =>
           (u._id || u.id) === userId
@@ -128,7 +132,7 @@ const Users = () => {
     }
   };
 
-  // 4. Filter Users based on search
+  // Filter Users
   const filteredUsers = users.filter((user) => {
     const name = user.fullName || user.name || "";
     const email = user.email || "";
@@ -143,7 +147,7 @@ const Users = () => {
   });
 
   return (
-    <div className="w-full bg-[#F8FAFC] min-h-screen font-sans space-y-8 p-4 sm:p-6">
+    <div className="w-full bg-[#F8FAFC]  font-sans space-y-8 p-4 sm:p-6 lg:pr-96">
       
       {/* Toast Notification Container */}
       <Toaster position="top-center" reverseOrder={false} />
@@ -304,7 +308,7 @@ const Users = () => {
                               <Edit3 className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => handleDelete(userId)}
+                              onClick={() => setDeletingUser(user)}
                               className="p-1.5 rounded-lg text-gray-500 hover:text-rose-600 hover:bg-rose-50 transition-colors"
                               title="Delete User"
                             >
@@ -408,6 +412,64 @@ const Users = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {deletingUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl relative border border-rose-100 text-center">
+            <div className="w-12 h-12 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertTriangle className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-1">Delete User?</h3>
+            <p className="text-xs text-gray-500 mb-6">
+              Are you sure you want to delete <span className="font-semibold text-gray-800">{deletingUser.fullName || deletingUser.name || "this user"}</span>? This action cannot be undone.
+            </p>
+
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={() => setDeletingUser(null)}
+                className="w-full py-2.5 text-xs font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={isDeleting}
+                className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-md"
+              >
+                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE SUCCESSFUL MODAL */}
+      {showDeleteSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white w-full max-w-sm rounded-2xl p-6 shadow-xl relative border border-emerald-100 text-center">
+            <div className="w-12 h-12 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle2 className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-bold text-gray-900 mb-1">User Deleted!</h3>
+            <p className="text-xs text-gray-500 mb-6">
+              The user has been successfully removed from the database.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setShowDeleteSuccessModal(false)}
+              className="w-full py-2.5 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 text-xs font-semibold rounded-xl transition-colors shadow-md"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

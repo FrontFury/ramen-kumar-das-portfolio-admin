@@ -27,7 +27,7 @@ export const AdminLayout = () => {
   };
 
   return (
-    <div className="relative min-h-screen bg-[#F8FAFC] text-zinc-800 flex flex-col justify-between selection:bg-emerald-600 selection:text-white font-['Playfair_Display',serif] overflow-hidden">
+    <div className="relative min-h-screen bg-[#F8FAFC] text-zinc-800 flex flex-col justify-between selection:bg-emerald-600 selection:text-white font-['Playfair_Display',serif] overflow-x-hidden">
       
       {/* Toast Notification Container with highest z-index & top margin */}
       <Toaster 
@@ -35,22 +35,22 @@ export const AdminLayout = () => {
         reverseOrder={false}
         containerStyle={{
           top: 20,
-          zIndex: 99999, // নিশ্চিত করবে Toast সবসময় সবার উপরে থাকবে
+          zIndex: 99999,
         }}
       />
 
       {/* 1. Light Grid Overlay */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690a_1px,transparent_1px),linear-gradient(to_bottom,#0596690a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none z-0" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#0596690a_1px,transparent_1px),linear-gradient(to_bottom,#0596690a_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)] pointer-events-none -z-10" />
 
       {/* 2. Soft Mint/Emerald Glows */}
-      <div className="absolute inset-0 pointer-events-none z-0">
+      <div className="absolute inset-0 pointer-events-none -z-10">
         <div className="absolute top-10 left-1/4 w-[500px] h-[500px] bg-emerald-100/60 rounded-full blur-[140px]" />
         <div className="absolute bottom-10 right-1/4 w-[450px] h-[450px] bg-teal-100/50 rounded-full blur-[140px]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-amber-100/40 rounded-full blur-[160px]" />
       </div>
 
-      {/* 3. Floating Nature Icons */}
-      <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+      {/* 3. Floating Nature Icons (-z-10 যোগ করে কন্টেন্ট ও ন্যাভবারের নিচে পাঠানো হয়েছে) */}
+      <div className="absolute inset-0 pointer-events-none -z-10 overflow-hidden">
         {floatingNatureIcons.map((item, idx) => {
           const NatureIcon = item.Icon;
           return (
@@ -86,7 +86,7 @@ export const AdminLayout = () => {
         })}
       </div>
 
-      {/* BRAND HEADER (z-index কমিয়ে z-20 করা হয়েছে) */}
+      {/* BRAND HEADER */}
       <header className="relative z-20 w-full bg-[#163A2D] lg:bg-white/40 lg:backdrop-blur-md border-b border-emerald-900/40 lg:border-emerald-100/60 transition-colors duration-300">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <NavLink
@@ -115,7 +115,7 @@ export const AdminLayout = () => {
       <Navbar isOpen={isOpen} setIsOpen={setIsOpen} handleLogout={handleLogout} />
 
       {/* Main Outlet Container */}
-      <main className="relative z-10 flex-grow max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:pr-20 py-8">
+      <main className="relative z-10 flex-grow max-w-[1400px] w-full mx-auto px-4 sm:px-6 lg:pl-12 lg:pr-32 py-8 transition-all duration-300">
         <Outlet />
       </main>
 
