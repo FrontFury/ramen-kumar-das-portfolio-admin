@@ -108,7 +108,6 @@ export const router = createBrowserRouter([
             element: <AllExperiences />,
           },
 
-          // 📌 Workshops Routes (Gallery-এর ঠিক আগে)
           {
             path: "workshops/add",
             element: <AddWorkshops />,

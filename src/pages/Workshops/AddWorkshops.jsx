@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { 
   Presentation, 
@@ -19,6 +20,8 @@ const AddWorkshops = () => {
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [certificateUrl, setCertificateUrl] = useState("");
+
+  const navigate = useNavigate();
 
   const {
     register,
@@ -89,6 +92,11 @@ const AddWorkshops = () => {
       
       reset();
       setCertificateUrl("");
+
+      // Redirect to /workshops/all after a short delay
+      setTimeout(() => {
+        navigate("/workshops/all");
+      }, 1000);
     } catch (error) {
       console.error("Error adding workshop:", error);
       toast.error("Failed to add workshop!");

@@ -12,8 +12,8 @@ import {
   Library,
   GraduationCap,
   School,
-  Presentation, // 📌 New Icon for Add Workshop
-  MonitorPlay,  // 📌 New Icon for All Workshops
+  Presentation,
+  MonitorPlay,
   Image,
   FolderKanban,
   UserCheck,
@@ -43,7 +43,6 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
     { id: "add-academic", label: "Add Academic", icon: GraduationCap, path: "/academic/add" },
     { id: "all-academics", label: "All Academics", icon: School, path: "/academic/all" },
 
-    // 📌 Workshops (Gallery-এর ঠিক আগে যোগ করা হলো)
     { id: "add-workshops", label: "Add Workshops", icon: Presentation, path: "/workshops/add" },
     { id: "all-workshops", label: "All Workshops", icon: MonitorPlay, path: "/workshops/all" },
 
@@ -72,7 +71,8 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
           bg-[#163A2D]/95 backdrop-blur-xl border border-emerald-800/60 rounded-2xl shadow-2xl gap-1.5 
           max-h-[75vh] overflow-y-auto scrollbar-none
 
-          lg:left-auto lg:top-1/2 lg:right-5 lg:-translate-y-1/2 lg:w-auto lg:items-end lg:gap-1.5 lg:bg-transparent lg:border-none lg:p-0 lg:shadow-none lg:backdrop-blur-none lg:max-h-[88vh] lg:overflow-y-auto lg:pr-1
+          lg:left-auto lg:top-1/2 lg:right-4 lg:-translate-y-1/2 lg:w-auto lg:items-end lg:gap-1 lg:bg-transparent lg:border-none lg:p-0 lg:shadow-none lg:backdrop-blur-none lg:max-h-[85vh] lg:overflow-y-auto lg:pr-1
+          [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
 
           ${
             isOpen
@@ -91,19 +91,19 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
               end={item.path === "/"}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) => `
-                group relative flex items-center transition-all duration-300 ease-in-out w-full lg:w-auto
+                group relative flex items-center transition-all duration-200 ease-in-out w-full lg:w-auto
 
                 ${
                   isActive
-                    ? `bg-[#0C2219] text-amber-300 font-semibold px-3.5 py-2 rounded-xl border border-amber-400/50 shadow-md shadow-amber-500/10 justify-start lg:justify-center`
-                    : `text-emerald-100 hover:text-amber-200 hover:bg-emerald-900/60 p-2 rounded-xl lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center`
+                    ? `bg-[#0C2219] text-amber-300 font-semibold px-3 py-1.5 lg:py-1 rounded-xl border border-amber-400/50 shadow-md shadow-amber-500/10 justify-start lg:justify-center`
+                    : `text-emerald-100 hover:text-amber-200 hover:bg-emerald-900/60 p-2 lg:p-1.5 rounded-xl lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center`
                 }
               `}
             >
               {({ isActive }) => (
                 <>
                   <Icon
-                    className={`w-4 h-4 sm:w-5 sm:h-5 shrink-0 transition-colors duration-200 ${
+                    className={`w-4 h-4 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px] shrink-0 transition-colors duration-200 ${
                       isActive ? "text-amber-400 stroke-[2.5]" : "text-emerald-100 group-hover:text-amber-300 stroke-2"
                     }`}
                   />
@@ -119,7 +119,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
 
                   {/* Desktop Hover Tooltip with Goldish Color */}
                   {!isActive && (
-                    <span className="hidden lg:block absolute right-14 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-amber-300 text-xs py-1.5 px-3 rounded-lg border border-amber-400/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
+                    <span className="hidden lg:block absolute right-12 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-amber-300 text-xs py-1 px-2.5 rounded-lg border border-amber-400/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
                       {item.label}
                     </span>
                   )}
@@ -135,9 +135,9 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
             setIsOpen(false);
             handleLogout();
           }}
-          className="group relative flex items-center transition-all duration-300 ease-in-out w-full lg:w-auto p-2 rounded-xl text-red-200 hover:text-red-300 hover:bg-red-900/60 lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center cursor-pointer"
+          className="group relative flex items-center transition-all duration-200 ease-in-out w-full lg:w-auto p-2 lg:p-1.5 rounded-xl text-red-200 hover:text-red-300 hover:bg-red-900/60 lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center cursor-pointer mt-0.5"
         >
-          <LogOut className="w-4 h-4 sm:w-5 sm:h-5 shrink-0 text-red-400 stroke-2 group-hover:text-red-300 transition-colors" />
+          <LogOut className="w-4 h-4 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px] shrink-0 text-red-400 stroke-2 group-hover:text-red-300 transition-colors" />
 
           {/* Label for Mobile Menu */}
           <span className="ml-3 text-sm whitespace-nowrap tracking-wide font-['Playfair_Display',serif] inline-block lg:hidden font-bold text-red-300">
@@ -145,7 +145,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
           </span>
 
           {/* Desktop Hover Tooltip */}
-          <span className="hidden lg:block absolute right-14 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-red-300 text-xs py-1.5 px-3 rounded-lg border border-red-500/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
+          <span className="hidden lg:block absolute right-12 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-red-300 text-xs py-1 px-2.5 rounded-lg border border-red-500/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
             Logout
           </span>
         </button>
