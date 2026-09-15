@@ -1,24 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import { 
-  ImagePlus, 
-  Tag, 
-  Type, 
-  MapPin, 
-  Calendar, 
-  Upload, 
-  CheckCircle2, 
-  Loader2, 
-  Sparkles,
-  X
+  ImagePlus, Tag, Type, MapPin, Calendar, 
+  Upload, CheckCircle2, Loader2, Sparkles, X 
 } from "lucide-react";
 
 const AddGallery = () => {
   const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
+  const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
   const {
@@ -27,9 +20,16 @@ const AddGallery = () => {
     reset,
     setValue,
     formState: { errors },
-  } = useForm();
+  } = useForm({
+    defaultValues: {
+      category: "Conferences",
+      title: "",
+      location: "",
+      date: "",
+      imageUrlInput: ""
+    }
+  });
 
-  // Handle File Upload (Convert to Base64)
   const handleFileProcess = (file) => {
     if (!file) return;
 
@@ -41,22 +41,34 @@ const AddGallery = () => {
     const reader = new FileReader();
     reader.onloadend = () => {
       setImageUrl(reader.result);
-      setValue("imageUrl", reader.result);
+      setValue("imageUrlInput", ""); // Clear text input if file is uploaded
       toast.success("Image selected!");
     };
     reader.readAsDataURL(file);
   };
 
-  // POST: Add new gallery item using Axios
+  const handleClearImage = () => {
+    setImageUrl("");
+    setValue("imageUrlInput", "");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
   const onSubmit = async (data) => {
+    const finalImageUrl = imageUrl || data.imageUrlInput;
+    
+    if (!finalImageUrl) {
+      toast.error("Please upload an image or provide an Image URL.");
+      return;
+    }
+
     setLoading(true);
     try {
       const payload = {
-        category: data.category || "Conferences",
+        category: data.category,
         title: data.title,
         location: data.location,
         date: data.date,
-        imageUrl: imageUrl || data.imageUrlInput || "",
+        imageUrl: finalImageUrl,
       };
 
       const res = await axios.post("http://localhost:3000/gallery", payload);
@@ -64,12 +76,8 @@ const AddGallery = () => {
       if (res.status === 201 || res.status === 200) {
         toast.success("Gallery item added successfully! ✨");
         reset();
-        setImageUrl("");
-        
-        // Redirect to /gallery/all after a brief delay for toast visibility
-        setTimeout(() => {
-          navigate("/gallery/all");
-        }, 1000);
+        handleClearImage();
+        setTimeout(() => navigate("/gallery/all"), 1000);
       }
     } catch (err) {
       console.error(err);
@@ -84,7 +92,6 @@ const AddGallery = () => {
       <Toaster position="top-center" containerStyle={{ top: 40, zIndex: 99999 }} />
 
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* HEADER SECTION */}
         <div className="relative overflow-hidden bg-gradient-to-r from-[#0F291E] via-[#163A2D] to-[#0A1C16] text-white p-6 sm:p-10 rounded-3xl shadow-2xl border border-emerald-800/40">
           <div className="absolute top-0 right-0 -mt-12 -mr-12 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex items-center gap-5">
@@ -93,9 +100,7 @@ const AddGallery = () => {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-wide">
-                  Add New Photo
-                </h1>
+                <h1 className="text-2xl sm:text-3xl font-black text-white tracking-wide">Add New Photo</h1>
                 <Sparkles className="w-5 h-5 text-amber-400 animate-pulse" />
               </div>
               <p className="text-sm text-emerald-200/90 mt-1 font-medium">
@@ -105,15 +110,11 @@ const AddGallery = () => {
           </div>
         </div>
 
-        {/* FORM CONTAINER */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            
-            {/* Category Dropdown/Input */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-emerald-700" />
-                Category
+                <Tag className="w-3.5 h-3.5 text-emerald-700" /> Category
               </label>
               <select
                 {...register("category", { required: "Category is required" })}
@@ -125,50 +126,39 @@ const AddGallery = () => {
                 <option value="Workshops">Workshops</option>
                 <option value="Awards">Awards</option>
               </select>
-              {errors.category && (
-                <span className="text-xs text-rose-500 mt-1 block">{errors.category.message}</span>
-              )}
+              {errors.category && <span className="text-xs text-rose-500 mt-1 block">{errors.category.message}</span>}
             </div>
 
-            {/* Title */}
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
-                <Type className="w-3.5 h-3.5 text-emerald-700" />
-                Title / Caption
+                <Type className="w-3.5 h-3.5 text-emerald-700" /> Title / Caption
               </label>
               <input
                 type="text"
-                placeholder="e.g. Receiving the Award for Poster Presentation @ ISRT"
+                placeholder="e.g. Receiving Poster Award @ ISRT"
                 {...register("title", { required: "Title is required" })}
                 className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-600 focus:bg-white rounded-xl text-sm font-medium text-slate-800 focus:outline-none transition-all"
               />
-              {errors.title && (
-                <span className="text-xs text-rose-500 mt-1 block">{errors.title.message}</span>
-              )}
+              {errors.title && <span className="text-xs text-rose-500 mt-1 block">{errors.title.message}</span>}
             </div>
 
-            {/* Location and Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-700" />
-                  Location / Venue
+                  <MapPin className="w-3.5 h-3.5 text-emerald-700" /> Location / Venue
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. ISRT, University of Dhaka"
+                  placeholder="e.g. University of Dhaka"
                   {...register("location", { required: "Location is required" })}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-600 focus:bg-white rounded-xl text-sm font-medium text-slate-800 focus:outline-none transition-all"
                 />
-                {errors.location && (
-                  <span className="text-xs text-rose-500 mt-1 block">{errors.location.message}</span>
-                )}
+                {errors.location && <span className="text-xs text-rose-500 mt-1 block">{errors.location.message}</span>}
               </div>
 
               <div>
                 <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 flex items-center gap-1.5">
-                  <Calendar className="w-3.5 h-3.5 text-emerald-700" />
-                  Date / Month Year
+                  <Calendar className="w-3.5 h-3.5 text-emerald-700" /> Date
                 </label>
                 <input
                   type="text"
@@ -176,49 +166,44 @@ const AddGallery = () => {
                   {...register("date", { required: "Date is required" })}
                   className="w-full px-4 py-3 bg-slate-50 border border-slate-200 focus:border-emerald-600 focus:bg-white rounded-xl text-sm font-medium text-slate-800 focus:outline-none transition-all"
                 />
-                {errors.date && (
-                  <span className="text-xs text-rose-500 mt-1 block">{errors.date.message}</span>
-                )}
+                {errors.date && <span className="text-xs text-rose-500 mt-1 block">{errors.date.message}</span>}
               </div>
             </div>
 
-            {/* Image Upload Option */}
             <div className="space-y-3 pt-2 border-t border-slate-100">
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                <Upload className="w-3.5 h-3.5 text-emerald-700" />
-                Upload Photo / Image URL
+                <Upload className="w-3.5 h-3.5 text-emerald-700" /> Upload Photo / Image URL
               </label>
 
               <label className="border-2 border-dashed border-slate-200 hover:border-emerald-600 rounded-2xl p-4 flex flex-col items-center justify-center gap-2 cursor-pointer bg-slate-50 hover:bg-emerald-50/40 transition-all group">
                 <input
+                  ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   onChange={(e) => handleFileProcess(e.target.files[0])}
                   className="hidden"
                 />
                 <Upload className="w-6 h-6 text-emerald-700 group-hover:scale-110 transition-transform" />
-                <span className="text-xs font-bold text-slate-700">
-                  Click to Choose File (Image)
-                </span>
+                <span className="text-xs font-bold text-slate-700">Click to Choose File</span>
               </label>
 
               <input
                 type="url"
                 placeholder="Or paste Direct Image URL"
                 {...register("imageUrlInput")}
-                onChange={(e) => setImageUrl(e.target.value)}
+                onChange={(e) => {
+                  setValue("imageUrlInput", e.target.value);
+                  setImageUrl(""); // Clear local file preview if direct URL is typed
+                }}
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-600 focus:bg-white rounded-xl text-xs font-medium text-slate-800 focus:outline-none transition-all"
               />
 
-              {imageUrl && (
+              {(imageUrl || errors.imageUrlInput) && (
                 <div className="mt-3 relative rounded-xl overflow-hidden border border-emerald-200 h-44 bg-slate-900/5 flex items-center justify-center">
                   <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
                   <button
                     type="button"
-                    onClick={() => {
-                      setImageUrl("");
-                      setValue("imageUrlInput", "");
-                    }}
+                    onClick={handleClearImage}
                     className="absolute top-2 right-2 p-1.5 bg-slate-900/70 hover:bg-slate-900 text-white rounded-full transition-all cursor-pointer"
                   >
                     <X className="w-4 h-4" />
@@ -227,7 +212,6 @@ const AddGallery = () => {
               )}
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={loading}

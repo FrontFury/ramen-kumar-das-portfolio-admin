@@ -23,6 +23,11 @@ const AddAcademic = () => {
 
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // ইমেজ ফাইল এবং প্রিভিউ ম্যানেজমেন্টের জন্য নতুন স্টেট
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+
   const [formData, setFormData] = useState({
     degree: "",
     institution: "",
@@ -42,12 +47,17 @@ const AddAcademic = () => {
         duration: editData.duration || "",
         certificateUrl: editData.certificateUrl || "",
       });
+      setPreviewUrl(editData.certificateUrl || "");
     }
   }, [editData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "certificateUrl") {
+      setPreviewUrl(value);
+      setSelectedFile(null); // ম্যানুয়াল URL দিলে নির্বাচন করা ফাইল বাদ হয়ে যাবে
+    }
   };
 
   const handleFileProcess = (file) => {
@@ -63,12 +73,9 @@ const AddAcademic = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData((prev) => ({ ...prev, certificateUrl: reader.result }));
-      toast.success("Certificate image selected!");
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    toast.success("Certificate image selected!");
   };
 
   const handleFileChange = (e) => {
@@ -94,6 +101,8 @@ const AddAcademic = () => {
   const removeImage = (e) => {
     e.stopPropagation();
     e.preventDefault();
+    setSelectedFile(null);
+    setPreviewUrl("");
     setFormData((prev) => ({ ...prev, certificateUrl: "" }));
   };
 
@@ -104,16 +113,46 @@ const AddAcademic = () => {
     const id = editData?._id || editData?.id;
 
     try {
+      let finalCertificateUrl = formData.certificateUrl;
+
+      // যদি ইউজার লোকাল ডিভাইস থেকে কোনো ইমেজ ফাইল সিলেক্ট করে থাকে
+      if (selectedFile) {
+        const imgData = new FormData();
+        imgData.append("image", selectedFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: imgData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Image upload to ImageBB failed!");
+        }
+
+        finalCertificateUrl = imgBbResult.data.display_url;
+      }
+
+      const payload = {
+        ...formData,
+        certificateUrl: finalCertificateUrl,
+      };
+
       if (editData) {
-        await axios.patch(`http://localhost:3000/academics/${id}`, formData);
+        await axios.patch(`http://localhost:3000/academics/${id}`, payload);
         toast.success("Academic qualification updated!");
       } else {
-        await axios.post("http://localhost:3000/academics", formData);
+        await axios.post("http://localhost:3000/academics", payload);
         toast.success("Academic qualification added!");
       }
       setTimeout(() => navigate("/academic/all"), 1200);
     } catch (err) {
-      toast.error(editData ? "Failed to update record!" : "Failed to add record!");
+      console.error("Submission error:", err);
+      toast.error(err.message || (editData ? "Failed to update record!" : "Failed to add record!"));
     } finally {
       setLoading(false);
     }
@@ -247,10 +286,10 @@ const AddAcademic = () => {
                 className="hidden"
               />
 
-              {formData.certificateUrl ? (
+              {previewUrl ? (
                 <div className="relative group w-full max-w-sm h-48 rounded-2xl overflow-hidden border border-gray-200 bg-white">
                   <img
-                    src={formData.certificateUrl}
+                    src={previewUrl}
                     alt="Uploaded Certificate"
                     className="w-full h-full object-contain"
                   />

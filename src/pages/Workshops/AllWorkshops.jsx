@@ -26,7 +26,10 @@ const AllWorkshops = () => {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [updating, setUpdating] = useState(false);
-  const [modalCertUrl, setModalCertUrl] = useState("");
+  
+  // Image states for Edit Modal
+  const [selectedModalFile, setSelectedModalFile] = useState(null);
+  const [modalPreviewUrl, setModalPreviewUrl] = useState("");
   const [activeImage, setActiveImage] = useState(null);
 
   const {
@@ -65,7 +68,9 @@ const AllWorkshops = () => {
   // Open Edit Modal
   const handleEdit = (item) => {
     setSelectedWorkshop(item);
-    setModalCertUrl(item.certificateUrl || "");
+    setSelectedModalFile(null);
+    setModalPreviewUrl(item.certificateUrl || "");
+    
     reset({
       title: item.title || "",
       type: item.type || "Workshop",
@@ -76,7 +81,7 @@ const AllWorkshops = () => {
     setIsEditModalOpen(true);
   };
 
-  // Handle Certificate Image File Upload (Base64)
+  // Handle Certificate Image File Selection (No Base64)
   const handleModalFileProcess = (file) => {
     if (!file) return;
 
@@ -85,13 +90,14 @@ const AllWorkshops = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setModalCertUrl(reader.result);
-      setValue("certificateUrlInput", reader.result);
-      toast.success("Image uploaded!");
-    };
-    reader.readAsDataURL(file);
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setSelectedModalFile(file);
+    setModalPreviewUrl(URL.createObjectURL(file));
+    toast.success("New certificate image selected!");
   };
 
   // DELETE: Remove Workshop
@@ -116,17 +122,41 @@ const AllWorkshops = () => {
     }
   };
 
-  // PATCH: Update Workshop
+  // PATCH: Update Workshop with ImageBB Upload
   const onUpdateSubmit = async (data) => {
     setUpdating(true);
 
     try {
+      let finalCertificateUrl = data.certificateUrlInput || modalPreviewUrl || "";
+
+      // Upload new file to ImageBB if selected
+      if (selectedModalFile) {
+        const formData = new FormData();
+        formData.append("image", selectedModalFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Failed to upload image to ImageBB!");
+        }
+
+        finalCertificateUrl = imgBbResult.data.display_url;
+      }
+
       const updatedData = {
         title: data.title,
         type: data.type,
         organizer: data.organizer,
         date: data.date,
-        certificateUrl: modalCertUrl || data.certificateUrlInput || "",
+        certificateUrl: finalCertificateUrl,
       };
 
       const targetId = selectedWorkshop.id || selectedWorkshop._id;
@@ -144,6 +174,7 @@ const AllWorkshops = () => {
 
       toast.success("Workshop updated successfully! ✨");
       setIsEditModalOpen(false);
+      setSelectedModalFile(null);
       fetchWorkshops();
     } catch (err) {
       console.error(err);
@@ -443,6 +474,16 @@ const AllWorkshops = () => {
                   Certificate Image
                 </label>
 
+                {modalPreviewUrl && (
+                  <div className="w-full h-32 rounded-xl overflow-hidden border border-gray-200 bg-gray-50 mb-2">
+                    <img
+                      src={modalPreviewUrl}
+                      alt="Preview"
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                )}
+
                 <label className="border-2 border-dashed border-gray-200 hover:border-emerald-600 rounded-xl p-3 flex items-center justify-center gap-2 cursor-pointer bg-gray-50 hover:bg-emerald-50/50 transition-all">
                   <input
                     type="file"
@@ -451,14 +492,19 @@ const AllWorkshops = () => {
                     className="hidden"
                   />
                   <Upload className="w-4 h-4 text-emerald-700" />
-                  <span className="text-xs font-bold text-gray-600">Choose File to Upload</span>
+                  <span className="text-xs font-bold text-gray-600">
+                    {selectedModalFile ? "Change Selected File" : "Choose File to Upload"}
+                  </span>
                 </label>
 
                 <input
                   type="url"
                   placeholder="Or paste image URL"
                   {...register("certificateUrlInput")}
-                  onChange={(e) => setModalCertUrl(e.target.value)}
+                  onChange={(e) => {
+                    setSelectedModalFile(null);
+                    setModalPreviewUrl(e.target.value);
+                  }}
                   className="w-full px-4 py-2 bg-gray-50 border border-gray-200 focus:border-emerald-600 focus:bg-white rounded-xl text-xs focus:outline-none transition-all"
                 />
               </div>

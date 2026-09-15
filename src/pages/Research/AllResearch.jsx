@@ -1,13 +1,35 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Trash2, Edit3, MapPin, Calendar, Loader2, BookOpen, Plus, Maximize2, X, Award } from "lucide-react";
+import { 
+  Trash2, 
+  Edit3, 
+  MapPin, 
+  Calendar, 
+  Loader2, 
+  BookOpen, 
+  Plus, 
+  Maximize2, 
+  X, 
+  Award, 
+  Save,
+  Upload,
+  ImageIcon
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
 
 const AllResearch = () => {
   const [researches, setResearches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(null);
+  
+  // Edit & Modal States
+  const [editingItem, setEditingItem] = useState(null);
+  const [editFormData, setEditFormData] = useState({});
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [updating, setUpdating] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
   const navigate = useNavigate();
 
   const fetchResearches = async () => {
@@ -34,6 +56,127 @@ const AllResearch = () => {
       setResearches((prev) => prev.filter((item) => (item._id || item.id) !== id));
     } catch (err) {
       toast.error("Failed to delete publication!");
+    }
+  };
+
+  // Open Edit Modal & populate state
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    setSelectedFile(null);
+    setEditFormData({
+      title: item.title || "",
+      authors: item.authors || "",
+      conference: item.conference || "",
+      eventDate: item.eventDate || "",
+      location: item.location || "",
+      certificateUrl: item.certificateUrl || "",
+    });
+  };
+
+  // Input change handler
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  // Process selected image file
+  const handleFileProcess = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file!");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setSelectedFile(file);
+    setEditFormData((prev) => ({
+      ...prev,
+      certificateUrl: URL.createObjectURL(file),
+    }));
+    toast.success("New certificate image selected!");
+  };
+
+  // Drag & Drop Handlers
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileProcess(e.dataTransfer.files[0]);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedFile(null);
+    setEditFormData((prev) => ({ ...prev, certificateUrl: "" }));
+  };
+
+  // Submit PATCH Request with ImageBB Upload
+  const handlePatchSubmit = async (e) => {
+    e.preventDefault();
+    const id = editingItem._id || editingItem.id;
+    setUpdating(true);
+
+    try {
+      let finalCertificateUrl = editFormData.certificateUrl;
+
+      // ইউজার লোকাল ডিভাইস থেকে কোনো ইমেজ ফাইল সিলেক্ট করলে ImageBB তে আপলোড হবে
+      if (selectedFile) {
+        const imgData = new FormData();
+        imgData.append("image", selectedFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: imgData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Image upload to ImageBB failed!");
+        }
+
+        finalCertificateUrl = imgBbResult.data.display_url;
+      }
+
+      const payload = {
+        ...editFormData,
+        certificateUrl: finalCertificateUrl,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await axios.patch(`http://localhost:3000/researches/${id}`, payload);
+      
+      // Local state update
+      setResearches((prev) =>
+        prev.map((item) => ((item._id || item.id) === id ? { ...item, ...payload } : item))
+      );
+
+      toast.success("Publication updated successfully!");
+      setEditingItem(null);
+      setSelectedFile(null);
+    } catch (err) {
+      console.error("Patch Error:", err);
+      toast.error(err.message || "Failed to update publication!");
+    } finally {
+      setUpdating(false);
     }
   };
 
@@ -94,10 +237,8 @@ const AllResearch = () => {
               key={id}
               className="group bg-white rounded-3xl border border-gray-100 p-5 sm:p-7 shadow-sm hover:shadow-xl hover:border-emerald-200/60 transition-all duration-300 grid grid-cols-1 md:grid-cols-12 gap-6 items-stretch relative overflow-hidden"
             >
-              {/* Left Accent Stripe */}
               <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 via-emerald-600 to-[#163A2D] opacity-80 group-hover:opacity-100 transition-opacity" />
 
-              {/* Certificate Image Frame */}
               <div className="md:col-span-5 flex justify-center items-center">
                 {item.certificateUrl ? (
                   <div className="relative group/img overflow-hidden rounded-2xl border border-gray-100 bg-gray-50 shadow-sm w-full max-h-60 h-full flex items-center justify-center">
@@ -123,10 +264,8 @@ const AllResearch = () => {
                 )}
               </div>
 
-              {/* Research Details */}
               <div className="md:col-span-7 flex flex-col justify-between space-y-4">
                 <div className="space-y-4">
-                  {/* Title & Authors */}
                   <div className="space-y-2">
                     <div className="flex items-start gap-3">
                       <span className="flex-shrink-0 w-7 h-7 rounded-xl bg-amber-100 text-amber-800 font-extrabold text-xs flex items-center justify-center shadow-inner mt-0.5">
@@ -142,7 +281,6 @@ const AllResearch = () => {
                     </p>
                   </div>
 
-                  {/* Conference Tag */}
                   <div className="pl-10">
                     <div className="inline-block px-3 py-1 bg-emerald-50 border border-emerald-100/80 rounded-xl text-xs font-bold text-[#163A2D] uppercase tracking-wider">
                       {item.conference}
@@ -150,7 +288,6 @@ const AllResearch = () => {
                   </div>
                 </div>
 
-                {/* Footer Section: Date/Location & Right-Bottom Buttons */}
                 <div className="pl-10 pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-4 mt-auto">
                   <div className="flex flex-wrap items-center gap-3 text-xs font-medium text-gray-500">
                     <span className="flex items-center gap-1.5 bg-gray-50 px-2.5 py-1 rounded-lg border border-gray-100">
@@ -161,10 +298,9 @@ const AllResearch = () => {
                     </span>
                   </div>
 
-                  {/* Actions (Always Fixed to Bottom Right) */}
                   <div className="flex items-center gap-2 ml-auto">
                     <button
-                      onClick={() => navigate("/researches/add", { state: { research: item } })}
+                      onClick={() => handleEditClick(item)}
                       className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-600 text-emerald-700 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-all duration-200 shadow-sm"
                     >
                       <Edit3 className="w-3.5 h-3.5" /> Edit
@@ -182,6 +318,190 @@ const AllResearch = () => {
           );
         })}
       </div>
+
+      {/* PATCH Edit Modal with Drag & Drop */}
+      {editingItem && (
+        <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 relative my-8">
+            <button
+              onClick={() => setEditingItem(null)}
+              className="absolute top-5 right-5 p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="space-y-1">
+              <h2 className="text-xl font-black text-gray-900 uppercase flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-emerald-600" /> Edit Research Publication
+              </h2>
+              <p className="text-xs text-gray-500">Update research info and image via PATCH operation.</p>
+            </div>
+
+            <form onSubmit={handlePatchSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Title
+                </label>
+                <input
+                  type="text"
+                  name="title"
+                  value={editFormData.title}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full px-4 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Authors
+                </label>
+                <input
+                  type="text"
+                  name="authors"
+                  value={editFormData.authors}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full px-4 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                  Conference / Journal
+                </label>
+                <input
+                  type="text"
+                  name="conference"
+                  value={editFormData.conference}
+                  onChange={handleFormChange}
+                  required
+                  className="w-full px-4 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Event Date
+                  </label>
+                  <input
+                    type="text"
+                    name="eventDate"
+                    value={editFormData.eventDate}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-4 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">
+                    Location
+                  </label>
+                  <input
+                    type="text"
+                    name="location"
+                    value={editFormData.location}
+                    onChange={handleFormChange}
+                    required
+                    className="w-full px-4 py-2.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                  />
+                </div>
+              </div>
+
+              {/* Drag & Drop Image Upload Section */}
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                <span className="text-xs font-bold text-gray-700 flex items-center gap-2 uppercase tracking-wider">
+                  <ImageIcon className="w-4 h-4 text-emerald-600" /> Update Certificate Image
+                </span>
+                
+                <label
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`relative border-2 border-dashed rounded-2xl p-4 transition-all flex flex-col items-center justify-center gap-2 text-center cursor-pointer block ${
+                    isDragging
+                      ? "border-emerald-500 bg-emerald-50/50 scale-[1.01]"
+                      : "border-gray-200 bg-gray-50/50 hover:bg-gray-100/60 hover:border-emerald-300"
+                  }`}
+                >
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => handleFileProcess(e.target.files[0])}
+                    className="hidden"
+                  />
+
+                  {editFormData.certificateUrl ? (
+                    <div className="relative group w-full max-w-xs h-36 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                      <img
+                        src={editFormData.certificateUrl}
+                        alt="Certificate Preview"
+                        className="w-full h-full object-contain"
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeImage();
+                        }}
+                        className="absolute top-2 right-2 p-1 bg-rose-600 text-white rounded-full shadow-md hover:bg-rose-700 transition-colors cursor-pointer"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-2.5 bg-emerald-100/60 rounded-full text-emerald-700">
+                        <Upload className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-gray-800">
+                          Click or Drag & Drop New Image
+                        </p>
+                        <p className="text-[10px] text-gray-400 mt-0.5">PNG, JPG or WebP up to 5MB</p>
+                      </div>
+                    </>
+                  )}
+                </label>
+
+                <input
+                  type="text"
+                  name="certificateUrl"
+                  placeholder="Or paste image URL directly"
+                  value={editFormData.certificateUrl}
+                  onChange={handleFormChange}
+                  className="w-full px-4 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                />
+              </div>
+
+              <div className="pt-3 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditingItem(null)}
+                  className="px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={updating}
+                  className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  {updating ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" /> Save Changes
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Full-screen Image Preview Modal */}
       {activeImage && (

@@ -10,6 +10,7 @@ const AddResearch = () => {
   const location = useLocation();
   const editData = location.state?.research || null;
 
+  const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -46,29 +47,16 @@ const AddResearch = () => {
     }
   }, [editData, reset]);
 
-  // Compress & Set Image Base64
+  // Set Local Image Preview and File State
   const handleImageFile = (file) => {
     if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.src = e.target.result;
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          const MAX_WIDTH = 800;
-          const scaleFactor = MAX_WIDTH / img.width;
-          canvas.width = MAX_WIDTH;
-          canvas.height = img.height * scaleFactor;
-
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-          const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
-          setImagePreview(compressedBase64);
-          setValue("certificateUrl", compressedBase64);
-        };
-      };
-      reader.readAsDataURL(file);
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+      setSelectedFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      toast.success("Certificate image selected!");
     } else {
       toast.error("Please upload a valid image file!");
     }
@@ -84,7 +72,35 @@ const AddResearch = () => {
       : "http://localhost:3000/researches";
 
     try {
-      const payload = { ...data, updatedAt: new Date().toISOString() };
+      let finalCertificateUrl = data.certificateUrl;
+
+      // যদি ফাইল চুজ বা ড্র্যাগ-অ্যান্ড-ড্রপ করা হয়ে থাকে
+      if (selectedFile) {
+        const imgData = new FormData();
+        imgData.append("image", selectedFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: imgData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Image upload to ImageBB failed!");
+        }
+
+        finalCertificateUrl = imgBbResult.data.display_url;
+      }
+
+      const payload = {
+        ...data,
+        certificateUrl: finalCertificateUrl,
+        updatedAt: new Date().toISOString(),
+      };
 
       if (id) {
         await axios.patch(url, payload);
@@ -96,14 +112,15 @@ const AddResearch = () => {
 
       setTimeout(() => navigate("/research/all"), 1500);
     } catch (err) {
-      toast.error(err.response?.data?.message || "Operation failed!");
+      console.error("Submission error:", err);
+      toast.error(err.message || err.response?.data?.message || "Operation failed!");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl border border-emerald-100 p-6 sm:p-10 shadow-sm space-y-6">
+    <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl border border-emerald-100 p-6 sm:p-10 shadow-sm space-y-6 font-sans">
       <Toaster position="top-center" containerStyle={{ top: 80, zIndex: 99999 }} />
 
       <div className="flex items-center gap-3 border-b border-gray-100 pb-5">
@@ -202,13 +219,14 @@ const AddResearch = () => {
             />
             {imagePreview ? (
               <div className="flex flex-col items-center gap-2">
-                <img src={imagePreview} alt="Certificate Preview" className="h-32 object-contain rounded-md border" />
+                <img src={imagePreview} alt="Certificate Preview" className="h-32 object-contain rounded-md border bg-white p-1" />
                 <p className="text-xs text-emerald-800 font-semibold">Click or Drag to replace image.</p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-2 text-gray-500">
                 <UploadCloud className="w-8 h-8 text-emerald-700" />
                 <p className="text-xs font-medium">Drag & drop certificate image here, or click to browse</p>
+                <span className="text-[10px] text-gray-400">PNG, JPG, WEBP (Max 5MB)</span>
               </div>
             )}
           </div>
@@ -218,7 +236,7 @@ const AddResearch = () => {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 mt-4 cursor-pointer shadow-md transition-all"
+          className="w-full py-3 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-semibold text-sm rounded-xl flex items-center justify-center gap-2 mt-4 cursor-pointer shadow-md transition-all disabled:opacity-50"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin text-amber-300" />

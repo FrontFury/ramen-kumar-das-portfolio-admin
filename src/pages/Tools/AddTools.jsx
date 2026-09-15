@@ -25,6 +25,7 @@ const AddTools = () => {
     imageUrl: "",
   });
 
+  const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,12 +59,9 @@ const AddTools = () => {
   // 2. Process Image File
   const handleImageFile = (file) => {
     if (file && file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-        setFormData((prev) => ({ ...prev, imageUrl: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      setSelectedFile(file);
+      setImagePreview(URL.createObjectURL(file));
+      toast.success("Icon/Image selected successfully!", toastOptions);
     } else {
       toast.error("Please upload a valid image file!", toastOptions);
     }
@@ -87,11 +85,11 @@ const AddTools = () => {
     }
   };
 
-  // 4. Submit Handler (POST API & Redirect)
+  // 4. Submit Handler (ImageBB Upload, POST API & Redirect)
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.imageUrl) {
+    if (!selectedFile && !formData.imageUrl) {
       toast.error("Please upload an image for the tool!", toastOptions);
       return;
     }
@@ -99,11 +97,36 @@ const AddTools = () => {
     setLoading(true);
 
     try {
+      let finalImageUrl = formData.imageUrl;
+
+      // ইউজার লোকাল পিকচার সিলেক্ট করলে ImageBB এ আপলোড হবে
+      if (selectedFile) {
+        const imgData = new FormData();
+        imgData.append("image", selectedFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: imgData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Image upload to ImageBB failed!");
+        }
+
+        finalImageUrl = imgBbResult.data.display_url;
+      }
+
       const response = await fetch("http://localhost:3000/tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          imageUrl: finalImageUrl,
           createdAt: new Date().toISOString(),
         }),
       });
@@ -113,6 +136,7 @@ const AddTools = () => {
       toast.success("New tool added successfully! 🎉", toastOptions);
 
       setFormData({ name: "", category: categories[0].id, desc: "", imageUrl: "" });
+      setSelectedFile(null);
       setImagePreview(null);
 
       // Redirect to /tools/all after 1.5 seconds
@@ -122,7 +146,7 @@ const AddTools = () => {
 
     } catch (err) {
       console.error("POST Error:", err);
-      toast.error("Failed to add tool!", toastOptions);
+      toast.error(err.message || "Failed to add tool!", toastOptions);
     } finally {
       setLoading(false);
     }
@@ -261,7 +285,7 @@ const AddTools = () => {
                   alt="Uploaded Preview"
                   className="w-16 h-16 object-contain rounded-lg border border-emerald-200 p-1 bg-white"
                 />
-                <p className="text-xs text-emerald-800 font-semibold">Image uploaded! Click or Drag to replace.</p>
+                <p className="text-xs text-emerald-800 font-semibold">Image selected! Click or Drag to replace.</p>
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center gap-2 text-gray-500">
@@ -269,7 +293,7 @@ const AddTools = () => {
                 <p className="text-xs font-medium">
                   <span className="font-semibold text-emerald-800">Drag & drop</span> an image here, or click to browse
                 </p>
-                <span className="text-[10px] text-gray-400">PNG, JPG, SVG up to 2MB</span>
+                <span className="text-[10px] text-gray-400">PNG, JPG, SVG up to 5MB</span>
               </div>
             )}
           </div>

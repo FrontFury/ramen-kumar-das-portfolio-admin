@@ -19,7 +19,8 @@ import toast, { Toaster } from "react-hot-toast";
 const AddWorkshops = () => {
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [certificateUrl, setCertificateUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
 
   const navigate = useNavigate();
 
@@ -27,11 +28,10 @@ const AddWorkshops = () => {
     register,
     handleSubmit,
     reset,
-    setValue,
     formState: { errors },
   } = useForm();
 
-  // File to Base64 Process
+  // Selected file validation and preview setup
   const handleFileProcess = (file) => {
     if (!file) return;
 
@@ -45,13 +45,9 @@ const AddWorkshops = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setCertificateUrl(reader.result);
-      setValue("certificateUrl", reader.result);
-      toast.success("Certificate image loaded!");
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    toast.success("Certificate image selected!");
   };
 
   const handleDragOver = (e) => {
@@ -67,31 +63,58 @@ const AddWorkshops = () => {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    handleFileProcess(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileProcess(e.dataTransfer.files[0]);
+    }
   };
 
   const removeImage = () => {
-    setCertificateUrl("");
-    setValue("certificateUrl", "");
+    setSelectedFile(null);
+    setPreviewUrl("");
   };
 
-  // Submit Handler
+  // Submit Handler with ImageBB Upload
   const onSubmit = async (data) => {
     setLoading(true);
     try {
+      let finalCertificateUrl = data.certificateUrlInput || "";
+
+      // Upload file to ImageBB if selected
+      if (selectedFile) {
+        const formData = new FormData();
+        formData.append("image", selectedFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: formData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Image upload to ImageBB failed!");
+        }
+
+        finalCertificateUrl = imgBbResult.data.display_url;
+      }
+
       const payload = {
         title: data.title,
         type: data.type || "Workshop",
         organizer: data.organizer,
         date: data.date,
-        certificateUrl: certificateUrl || data.certificateUrlInput || "",
+        certificateUrl: finalCertificateUrl,
       };
 
       await axios.post("http://localhost:3000/workshops", payload);
       toast.success("Workshop added successfully!");
       
       reset();
-      setCertificateUrl("");
+      setSelectedFile(null);
+      setPreviewUrl("");
 
       // Redirect to /workshops/all after a short delay
       setTimeout(() => {
@@ -99,7 +122,7 @@ const AddWorkshops = () => {
       }, 1000);
     } catch (error) {
       console.error("Error adding workshop:", error);
-      toast.error("Failed to add workshop!");
+      toast.error(error.message || "Failed to add workshop!");
     } finally {
       setLoading(false);
     }
@@ -220,10 +243,10 @@ const AddWorkshops = () => {
                   className="hidden"
                 />
 
-                {certificateUrl ? (
+                {previewUrl ? (
                   <div className="relative group w-full max-w-sm h-40 rounded-2xl overflow-hidden border border-gray-200 bg-white">
                     <img
-                      src={certificateUrl}
+                      src={previewUrl}
                       alt="Certificate Preview"
                       className="w-full h-full object-contain"
                     />

@@ -11,6 +11,11 @@ const AddCourse = () => {
 
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // লোকাল সিলেক্ট করা ইমেজের File অবজেক্ট সংরক্ষণের জন্য স্টেট
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState("");
+
   const [formData, setFormData] = useState({
     title: "",
     certificateNumber: "",
@@ -28,12 +33,17 @@ const AddCourse = () => {
         issueDate: editData.issueDate || "",
         certificateUrl: editData.certificateUrl || "",
       });
+      setPreviewUrl(editData.certificateUrl || "");
     }
   }, [editData]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    if (name === "certificateUrl") {
+      setPreviewUrl(value);
+      setSelectedFile(null); // ইউআরএল ম্যানুয়ালি দিলে ফাইল ক্লিয়ার হবে
+    }
   };
 
   // ছবি প্রসেস করার ফাংশন
@@ -50,12 +60,9 @@ const AddCourse = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData((prev) => ({ ...prev, certificateUrl: reader.result }));
-      toast.success("Image selected successfully!");
-    };
-    reader.readAsDataURL(file);
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    toast.success("Image selected successfully!");
   };
 
   const handleFileChange = (e) => {
@@ -82,8 +89,10 @@ const AddCourse = () => {
   };
 
   const removeImage = (e) => {
-    e.stopPropagation(); // যাতে ছবি রিমুভ বাটনে ক্লিক করলে ফাইল ডায়ালগ না খুলে
+    e.stopPropagation(); // যাতে ছবি রিমুভ বাটনে ক্লিক করলে ফাইল ডায়ালগ না খুলে
     e.preventDefault();
+    setSelectedFile(null);
+    setPreviewUrl("");
     setFormData((prev) => ({ ...prev, certificateUrl: "" }));
   };
 
@@ -94,16 +103,46 @@ const AddCourse = () => {
     const id = editData?._id || editData?.id;
 
     try {
+      let finalCertificateUrl = formData.certificateUrl;
+
+      // যদি ইউজার লোকাল কোনো ফাইল সিলেক্ট করে থাকে তবে সেটি ImageBB-তে আপলোড হবে
+      if (selectedFile) {
+        const imgData = new FormData();
+        imgData.append("image", selectedFile);
+
+        const imgBbRes = await fetch(
+          `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
+          {
+            method: "POST",
+            body: imgData,
+          }
+        );
+
+        const imgBbResult = await imgBbRes.json();
+
+        if (!imgBbResult.success) {
+          throw new Error("Image upload failed. Please check your ImageBB API key.");
+        }
+
+        finalCertificateUrl = imgBbResult.data.display_url;
+      }
+
+      const payload = {
+        ...formData,
+        certificateUrl: finalCertificateUrl,
+      };
+
       if (editData) {
-        await axios.patch(`http://localhost:3000/courses/${id}`, formData);
+        await axios.patch(`http://localhost:3000/courses/${id}`, payload);
         toast.success("Course updated successfully!");
       } else {
-        await axios.post("http://localhost:3000/courses", formData);
+        await axios.post("http://localhost:3000/courses", payload);
         toast.success("Course added successfully!");
       }
       setTimeout(() => navigate("/courses/all"), 1200);
     } catch (err) {
-      toast.error(editData ? "Failed to update course!" : "Failed to add course!");
+      console.error("Submission error:", err);
+      toast.error(err.message || (editData ? "Failed to update course!" : "Failed to add course!"));
     } finally {
       setLoading(false);
     }
@@ -223,10 +262,10 @@ const AddCourse = () => {
                 className="hidden"
               />
 
-              {formData.certificateUrl ? (
+              {previewUrl ? (
                 <div className="relative group w-full max-w-sm h-48 rounded-2xl overflow-hidden border border-gray-200 bg-white">
                   <img
-                    src={formData.certificateUrl}
+                    src={previewUrl}
                     alt="Uploaded Certificate"
                     className="w-full h-full object-contain"
                   />
