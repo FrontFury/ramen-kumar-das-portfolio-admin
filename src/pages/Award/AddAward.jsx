@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useForm, Controller } from "react-hook-form";
 import { 
   Award, 
-  Image as ImageIcon, 
   Loader2, 
   PlusCircle, 
   Upload, 
@@ -10,19 +11,36 @@ import {
   ChevronLeft, 
   ChevronRight 
 } from "lucide-react";
-import toast, { Toaster } from "react-hot-toast";
+import toast from "react-hot-toast";
 
 const AddAward = () => {
-  const [formData, setFormData] = useState({
-    title: "",
-    organization: "",
-    dateReceived: "", // Date field
-    description: "",
+  const navigate = useNavigate();
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    watch,
+    control,
+    reset,
+    formState: { errors },
+  } = useForm({
+    defaultValues: {
+      title: "",
+      organization: "",
+      dateReceived: "",
+      description: "",
+      imageFile: null,
+    },
   });
-  const [imageFile, setImageFile] = useState(null);
+
   const [imagePreview, setImagePreview] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Watched Values
+  const selectedDateReceived = watch("dateReceived");
+  const selectedImageFile = watch("imageFile");
 
   // --- Datepicker States & Logic ---
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -40,10 +58,10 @@ const AddAward = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
-  };
+  // Clear previous notifications on mount
+  useEffect(() => {
+    toast.dismiss();
+  }, []);
 
   // Date Selection Handler
   const handleDateSelect = (day) => {
@@ -52,7 +70,7 @@ const AddAward = () => {
     const formattedDay = String(day).padStart(2, "0");
     const selectedDate = `${year}-${month}-${formattedDay}`;
 
-    setFormData((prev) => ({ ...prev, dateReceived: selectedDate }));
+    setValue("dateReceived", selectedDate, { shouldValidate: true });
     setShowDatePicker(false);
   };
 
@@ -80,7 +98,7 @@ const AddAward = () => {
   // File Handlers
   const processFile = (file) => {
     if (file && file.type.startsWith("image/")) {
-      setImageFile(file);
+      setValue("imageFile", file, { shouldValidate: true });
       setImagePreview(URL.createObjectURL(file));
     } else {
       toast.error("Please select or drop a valid image file!");
@@ -110,29 +128,17 @@ const AddAward = () => {
   };
 
   const handleRemoveImage = () => {
-    setImageFile(null);
+    setValue("imageFile", null, { shouldValidate: true });
     setImagePreview(null);
   };
 
   // Submit Handler
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!imageFile) {
-      toast.error("Please provide an award image!");
-      return;
-    }
-
-    if (!formData.dateReceived) {
-      toast.error("Please select the received date!");
-      return;
-    }
-
+  const onSubmit = async (data) => {
     setLoading(true);
 
     try {
       const imgData = new FormData();
-      imgData.append("image", imageFile);
+      imgData.append("image", data.imageFile);
 
       const imgBbRes = await fetch(
         `https://api.imgbb.com/1/upload?key=${import.meta.env.VITE_image_host_key}`,
@@ -151,7 +157,10 @@ const AddAward = () => {
       const imageUrl = imgBbResult.data.display_url;
 
       const newAward = {
-        ...formData,
+        title: data.title,
+        organization: data.organization,
+        dateReceived: data.dateReceived,
+        description: data.description,
         image: imageUrl,
         createdAt: new Date().toISOString(),
       };
@@ -169,8 +178,14 @@ const AddAward = () => {
       }
 
       toast.success("Award added successfully! 🎉");
-      setFormData({ title: "", organization: "", dateReceived: "", description: "" });
-      handleRemoveImage();
+
+      reset();
+      setImagePreview(null);
+
+      setTimeout(() => {
+        navigate("/award/all");
+      }, 3000);
+
     } catch (err) {
       console.error("Submission Error:", err);
       toast.error(err.message || "Something went wrong!");
@@ -181,9 +196,6 @@ const AddAward = () => {
 
   return (
     <div className="w-full bg-[#F8FAFC] min-h-screen font-sans p-4 sm:p-6 lg:pr-24">
-      <Toaster position="top-center" reverseOrder={false} />
-
-      {/* CONTAINER WITH MATCHED WIDTH */}
       <div className="max-w-5xl mx-auto space-y-6">
         
         {/* HEADER SECTION */}
@@ -205,7 +217,7 @@ const AddAward = () => {
 
         {/* FORM CARD */}
         <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-6 sm:p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               
               {/* Award Title */}
@@ -215,13 +227,15 @@ const AddAward = () => {
                 </label>
                 <input
                   type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleChange}
                   placeholder="e.g. Best Researcher Award"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
-                  required
+                  className={`w-full px-4 py-2.5 bg-gray-50 border ${
+                    errors.title ? "border-rose-500 focus:border-rose-500" : "border-gray-200 focus:border-emerald-600"
+                  } rounded-xl text-sm focus:outline-none focus:bg-white transition-all`}
+                  {...register("title", { required: "Award Title is required" })}
                 />
+                {errors.title && (
+                  <p className="text-xs text-rose-500 mt-1 font-medium">{errors.title.message}</p>
+                )}
               </div>
 
               {/* Organization / Issuer */}
@@ -231,41 +245,56 @@ const AddAward = () => {
                 </label>
                 <input
                   type="text"
-                  name="organization"
-                  value={formData.organization}
-                  onChange={handleChange}
                   placeholder="e.g. National Science Foundation"
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-600 focus:bg-white transition-all"
-                  required
+                  className={`w-full px-4 py-2.5 bg-gray-50 border ${
+                    errors.organization ? "border-rose-500 focus:border-rose-500" : "border-gray-200 focus:border-emerald-600"
+                  } rounded-xl text-sm focus:outline-none focus:bg-white transition-all`}
+                  {...register("organization", { required: "Organization / Issuer is required" })}
                 />
+                {errors.organization && (
+                  <p className="text-xs text-rose-500 mt-1 font-medium">{errors.organization.message}</p>
+                )}
               </div>
 
-              {/* EYE CATCHING DATE RECEIVED (CUSTOM DATEPICKER) */}
+              {/* DATE RECEIVED (CUSTOM DATEPICKER) */}
               <div className="md:col-span-2 relative" ref={datePickerRef}>
                 <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
                   Date Received <span className="text-rose-500">*</span>
                 </label>
                 
-                <div
-                  onClick={() => setShowDatePicker((prev) => !prev)}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm flex items-center justify-between cursor-pointer hover:bg-emerald-50/40 hover:border-emerald-300 transition-all group"
-                >
-                  <span className={formData.dateReceived ? "text-gray-800 font-semibold" : "text-gray-400"}>
-                    {formData.dateReceived
-                      ? new Date(formData.dateReceived).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "long",
-                          day: "numeric",
-                        })
-                      : "Select date received..."}
-                  </span>
-                  <CalendarIcon className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
-                </div>
+                <Controller
+                  name="dateReceived"
+                  control={control}
+                  rules={{ required: "Date Received is required" }}
+                  render={({ field }) => (
+                    <div>
+                      <div
+                        onClick={() => setShowDatePicker((prev) => !prev)}
+                        className={`w-full px-4 py-2.5 bg-gray-50 border ${
+                          errors.dateReceived ? "border-rose-500" : "border-gray-200"
+                        } rounded-xl text-sm flex items-center justify-between cursor-pointer hover:bg-emerald-50/40 hover:border-emerald-300 transition-all group`}
+                      >
+                        <span className={field.value ? "text-gray-800 font-semibold" : "text-gray-400"}>
+                          {field.value
+                            ? new Date(field.value).toLocaleDateString("en-US", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })
+                            : "Select date received..."}
+                        </span>
+                        <CalendarIcon className="w-5 h-5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                      </div>
+                      {errors.dateReceived && (
+                        <p className="text-xs text-rose-500 mt-1 font-medium">{errors.dateReceived.message}</p>
+                      )}
+                    </div>
+                  )}
+                />
 
                 {/* POPUP DATEPICKER CARD */}
                 {showDatePicker && (
                   <div className="absolute top-full left-0 mt-2 z-50 w-80 bg-white border border-emerald-100 rounded-2xl shadow-2xl p-4 transition-all animate-in fade-in zoom-in-95">
-                    {/* Header: Month & Navigation */}
                     <div className="flex items-center justify-between mb-4 pb-2 border-b border-gray-100">
                       <button
                         type="button"
@@ -286,7 +315,6 @@ const AddAward = () => {
                       </button>
                     </div>
 
-                    {/* Day Names */}
                     <div className="grid grid-cols-7 text-center text-[11px] font-bold text-emerald-800/70 mb-2">
                       <span>Su</span>
                       <span>Mo</span>
@@ -297,20 +325,17 @@ const AddAward = () => {
                       <span>Sa</span>
                     </div>
 
-                    {/* Calendar Days */}
                     <div className="grid grid-cols-7 gap-1 text-center text-xs">
-                      {/* Empty cells for padding before day 1 */}
                       {Array.from({ length: firstDayOfMonth }).map((_, index) => (
                         <div key={`empty-${index}`} />
                       ))}
 
-                      {/* Actual Days */}
                       {Array.from({ length: daysInMonth }).map((_, i) => {
                         const day = i + 1;
                         const dateString = `${currentMonth.getFullYear()}-${String(
                           currentMonth.getMonth() + 1
                         ).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-                        const isSelected = formData.dateReceived === dateString;
+                        const isSelected = selectedDateReceived === dateString;
 
                         return (
                           <button
@@ -339,74 +364,88 @@ const AddAward = () => {
                 Award Image / Certificate <span className="text-rose-500">*</span>
               </label>
 
-              {!imagePreview ? (
-                <div
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className={`relative border-2 border-dashed rounded-2xl p-6 text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
-                    isDragging
-                      ? "border-emerald-600 bg-emerald-50/70 scale-[1.01]"
-                      : "border-emerald-300 bg-gray-50 hover:bg-emerald-50/30"
-                  }`}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                  />
-                  <div className="p-3 bg-emerald-100/70 text-emerald-800 rounded-full mb-3">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <p className="text-sm font-semibold text-gray-700">
-                    <span className="text-emerald-700 font-bold">Click to upload</span> or drag and drop
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP, or GIF up to 10MB</p>
-                </div>
-              ) : (
-                /* PREVIEW AREA */
-                <div className="relative p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={imagePreview}
-                      alt="Award Preview"
-                      className="w-20 h-20 object-cover rounded-xl border border-emerald-300 shadow-sm"
-                    />
-                    <div>
-                      <p className="text-sm font-bold text-[#163A2D] truncate max-w-[200px] sm:max-w-xs">
-                        {imageFile?.name}
-                      </p>
-                      <p className="text-xs text-emerald-700 font-medium mt-0.5">
-                        {(imageFile?.size / (1024 * 1024)).toFixed(2)} MB • Ready to Upload
-                      </p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveImage}
-                    className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
-                    title="Remove Image"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+              <Controller
+                name="imageFile"
+                control={control}
+                rules={{ required: "Award Image / Certificate is required" }}
+                render={() => (
+                  <>
+                    {!imagePreview ? (
+                      <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop}
+                        className={`relative border-2 ${
+                          errors.imageFile ? "border-rose-400 bg-rose-50/20" : "border-emerald-300 bg-gray-50"
+                        } border-dashed rounded-2xl p-6 text-center flex flex-col items-center justify-center transition-all cursor-pointer ${
+                          isDragging ? "border-emerald-600 bg-emerald-50/70 scale-[1.01]" : "hover:bg-emerald-50/30"
+                        }`}
+                      >
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                        />
+                        <div className="p-3 bg-emerald-100/70 text-emerald-800 rounded-full mb-3">
+                          <Upload className="w-6 h-6" />
+                        </div>
+                        <p className="text-sm font-semibold text-gray-700">
+                          <span className="text-emerald-700 font-bold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">PNG, JPG, WEBP, or GIF up to 10MB</p>
+                      </div>
+                    ) : (
+                      <div className="relative p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <img
+                            src={imagePreview}
+                            alt="Award Preview"
+                            className="w-20 h-20 object-cover rounded-xl border border-emerald-300 shadow-sm"
+                          />
+                          <div>
+                            <p className="text-sm font-bold text-[#163A2D] truncate max-w-[200px] sm:max-w-xs">
+                              {selectedImageFile?.name}
+                            </p>
+                            <p className="text-xs text-emerald-700 font-medium mt-0.5">
+                              {(selectedImageFile?.size / (1024 * 1024)).toFixed(2)} MB • Ready to Upload
+                            </p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleRemoveImage}
+                          className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all"
+                          title="Remove Image"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              />
+              {errors.imageFile && (
+                <p className="text-xs text-rose-500 mt-1 font-medium">{errors.imageFile.message}</p>
               )}
             </div>
 
             {/* Description */}
             <div>
               <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
-                Award Description
+                Award Description <span className="text-rose-500">*</span>
               </label>
               <textarea
-                name="description"
                 rows="4"
-                value={formData.description}
-                onChange={handleChange}
                 placeholder="Brief summary of why or how this award was received..."
-                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:border-emerald-600 focus:bg-white transition-all resize-none"
+                className={`w-full px-4 py-2.5 bg-gray-50 border ${
+                  errors.description ? "border-rose-500 focus:border-rose-500" : "border-gray-200 focus:border-emerald-600"
+                } rounded-xl text-sm focus:outline-none focus:bg-white transition-all resize-none`}
+                {...register("description", { required: "Award Description is required" })}
               ></textarea>
+              {errors.description && (
+                <p className="text-xs text-rose-500 mt-1 font-medium">{errors.description.message}</p>
+              )}
             </div>
 
             {/* Submit Button */}
