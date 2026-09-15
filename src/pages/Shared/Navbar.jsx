@@ -17,6 +17,8 @@ import {
   UserCheck,
   Contact,
   LogOut,
+  FolderGit2,
+  FolderCheck,
 } from "lucide-react";
 
 const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
@@ -25,6 +27,9 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
 
     { id: "add-award", label: "Add Award", icon: Award, path: "/award/add" },
     { id: "all-award", label: "All Award", icon: Trophy, path: "/award/all" },
+
+    { id: "add-project-supervision", label: "Add Supervision", icon: FolderGit2, path: "/project-supervision/add" },
+    { id: "all-project-supervision", label: "All Supervision", icon: FolderCheck, path: "/project-supervision/all" },
 
     { id: "add-experience", label: "Add Experience", icon: Briefcase, path: "/experience/add" },
     { id: "all-experience", label: "All Experience", icon: History, path: "/experience/all" },
@@ -111,7 +116,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
                     {item.label}
                   </span>
 
-                  {/* Desktop Hover Tooltip (z-50 and positioning updated) */}
+                  {/* Desktop Hover Tooltip */}
                   {!isActive && (
                     <span className="hidden lg:block absolute right-full mr-3 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-amber-300 text-xs py-1.5 px-3 rounded-lg border border-amber-400/40 whitespace-nowrap shadow-2xl font-['Playfair_Display',serif] font-semibold">
                       {item.label}

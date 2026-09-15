@@ -12,6 +12,9 @@ import AllAcademics from "../pages/Academic/AllAcademics";
 import AddAward from "../pages/Award/AddAward";
 import AllAwards from "../pages/Award/AllAwards";
 
+import AddProjectSupervision from "../ProjectSupervision/AddProjectSupervision";
+import AllProjectSupervision from "../ProjectSupervision/AllProjectSupervision";
+
 import AddCourses from "../pages/Courses/AddCourses";
 import AllCourses from "../pages/Courses/AllCourses";
 
@@ -72,6 +75,15 @@ export const router = createBrowserRouter([
           {
             path: "award/all",
             element: <AllAwards />,
+          },
+
+          {
+            path: "project-supervision/add",
+            element: <AddProjectSupervision />,
+          },
+          {
+            path: "project-supervision/all",
+            element: <AllProjectSupervision />,
           },
 
           {
