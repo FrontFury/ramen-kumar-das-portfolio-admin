@@ -12,6 +12,8 @@ import {
   Library,
   GraduationCap,
   School,
+  Presentation, // 📌 New Icon for Add Workshop
+  MonitorPlay,  // 📌 New Icon for All Workshops
   Image,
   FolderKanban,
   UserCheck,
@@ -40,6 +42,10 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
 
     { id: "add-academic", label: "Add Academic", icon: GraduationCap, path: "/academic/add" },
     { id: "all-academics", label: "All Academics", icon: School, path: "/academic/all" },
+
+    // 📌 Workshops (Gallery-এর ঠিক আগে যোগ করা হলো)
+    { id: "add-workshops", label: "Add Workshops", icon: Presentation, path: "/workshops/add" },
+    { id: "all-workshops", label: "All Workshops", icon: MonitorPlay, path: "/workshops/all" },
 
     { id: "add-gallery", label: "Add Gallery", icon: Image, path: "/gallery/add" },
     { id: "all-gallery", label: "All Gallery", icon: FolderKanban, path: "/gallery/all" },

@@ -21,6 +21,10 @@ import AllCourses from "../pages/Courses/AllCourses";
 import AddExperience from "../pages/Experience/AddExperience";
 import AllExperiences from "../pages/Experience/AllExperiences";
 
+// 📌 Workshop Components Import
+import AddWorkshops from "../pages/Workshops/AddWorkshops";
+import AllWorkshops from "../pages/Workshops/AllWorkshops";
+
 import AddGallery from "../pages/Gallery/AddGallery";
 import AllGallery from "../pages/Gallery/AllGallery";
 
@@ -102,6 +106,16 @@ export const router = createBrowserRouter([
           {
             path: "experience/all",
             element: <AllExperiences />,
+          },
+
+          // 📌 Workshops Routes (Gallery-এর ঠিক আগে)
+          {
+            path: "workshops/add",
+            element: <AddWorkshops />,
+          },
+          {
+            path: "workshops/all",
+            element: <AllWorkshops />,
           },
 
           {
