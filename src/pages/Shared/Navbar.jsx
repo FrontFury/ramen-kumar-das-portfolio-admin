@@ -17,8 +17,6 @@ import {
   UserCheck,
   Contact,
   LogOut,
-  FolderGit2,
-  FolderCheck,
 } from "lucide-react";
 
 const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
@@ -27,9 +25,6 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
 
     { id: "add-award", label: "Add Award", icon: Award, path: "/award/add" },
     { id: "all-award", label: "All Award", icon: Trophy, path: "/award/all" },
-
-    { id: "add-project-supervision", label: "Add Supervision", icon: FolderGit2, path: "/project-supervision/add" },
-    { id: "all-project-supervision", label: "All Supervision", icon: FolderCheck, path: "/project-supervision/all" },
 
     { id: "add-experience", label: "Add Experience", icon: Briefcase, path: "/experience/add" },
     { id: "all-experience", label: "All Experience", icon: History, path: "/experience/all" },
@@ -94,7 +89,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
 
                 ${
                   isActive
-                    ? `bg-[#0C2219] text-amber-300 font-semibold px-3.5 py-2 rounded-xl border border-amber-400/50 shadow-md shadow-amber-500/10 justify-start lg:justify-center z-10`
+                    ? `bg-[#0C2219] text-amber-300 font-semibold px-3.5 py-2 rounded-xl border border-amber-400/50 shadow-md shadow-amber-500/10 justify-start lg:justify-center`
                     : `text-emerald-100 hover:text-amber-200 hover:bg-emerald-900/60 p-2 rounded-xl lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center`
                 }
               `}
@@ -116,9 +111,9 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
                     {item.label}
                   </span>
 
-                  {/* Desktop Hover Tooltip */}
+                  {/* Desktop Hover Tooltip with Goldish Color */}
                   {!isActive && (
-                    <span className="hidden lg:block absolute right-full mr-3 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-amber-300 text-xs py-1.5 px-3 rounded-lg border border-amber-400/40 whitespace-nowrap shadow-2xl font-['Playfair_Display',serif] font-semibold">
+                    <span className="hidden lg:block absolute right-14 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-amber-300 text-xs py-1.5 px-3 rounded-lg border border-amber-400/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
                       {item.label}
                     </span>
                   )}
@@ -144,7 +139,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
           </span>
 
           {/* Desktop Hover Tooltip */}
-          <span className="hidden lg:block absolute right-full mr-3 z-50 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-red-300 text-xs py-1.5 px-3 rounded-lg border border-red-500/40 whitespace-nowrap shadow-2xl font-['Playfair_Display',serif] font-semibold">
+          <span className="hidden lg:block absolute right-14 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-red-300 text-xs py-1.5 px-3 rounded-lg border border-red-500/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
             Logout
           </span>
         </button>

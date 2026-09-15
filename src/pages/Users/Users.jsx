@@ -147,7 +147,7 @@ const Users = () => {
   });
 
   return (
-    <div className="w-full bg-[#F8FAFC]  font-sans space-y-8 p-4 sm:p-6 lg:pr-96">
+    <div className="w-full max-w-7xl mx-auto bg-[#F8FAFC] font-sans space-y-8 p-4 sm:p-6 lg:pr-16">
       
       {/* Toast Notification Container */}
       <Toaster position="top-center" reverseOrder={false} />
