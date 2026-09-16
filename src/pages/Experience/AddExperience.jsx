@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Briefcase,
   Loader2,
@@ -11,9 +12,12 @@ import {
   ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AddExperience = () => {
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -36,24 +40,44 @@ const AddExperience = () => {
     },
   });
 
-  const [loading, setLoading] = useState(false);
-
   // Watched Values
   const selectedStartDate = watch("startDate");
   const selectedEndDate = watch("endDate");
   const isCurrentlyWorking = watch("currentlyWorking");
 
-  // --- Start Datepicker States & Logic ---
+  // --- Start Datepicker States ---
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [startCurrentMonth, setStartCurrentMonth] = useState(new Date());
   const startDatePickerRef = useRef(null);
 
-  // --- End Datepicker States & Logic ---
+  // --- End Datepicker States ---
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [endCurrentMonth, setEndCurrentMonth] = useState(new Date());
   const endDatePickerRef = useRef(null);
 
-  // Close DatePickers when clicking outside
+  // --- TanStack Query Mutation ---
+  const { mutate: createExperience, isPending: loading } = useMutation({
+    mutationFn: async (newExperience) => {
+      const response = await axiosSecure.post("/experiences", newExperience);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Experience added successfully! 🎉");
+      queryClient.invalidateQueries({ queryKey: ["experiences"] });
+      reset();
+      setTimeout(() => {
+        navigate("/experience/all");
+      }, 1500);
+    },
+    onError: (err) => {
+      console.error("Submission Error:", err);
+      toast.error(
+        err?.response?.data?.message || err?.message || "Something went wrong!"
+      );
+    },
+  });
+
+  // Close DatePickers on Outside Click
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (
@@ -99,7 +123,7 @@ const AddExperience = () => {
     setShowEndDatePicker(false);
   };
 
-  // Calendar Helpers for Start Date
+  // Calendar Helpers
   const startDaysInMonth = new Date(
     startCurrentMonth.getFullYear(),
     startCurrentMonth.getMonth() + 1,
@@ -111,7 +135,6 @@ const AddExperience = () => {
     1
   ).getDay();
 
-  // Calendar Helpers for End Date
   const endDaysInMonth = new Date(
     endCurrentMonth.getFullYear(),
     endCurrentMonth.getMonth() + 1,
@@ -124,66 +147,38 @@ const AddExperience = () => {
   ).getDay();
 
   // Submit Handler
-  const onSubmit = async (data) => {
-    setLoading(true);
+  const onSubmit = (data) => {
+    const formattedStartDate = data.startDate
+      ? new Date(data.startDate).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "";
 
-    try {
-      // Date formatting to match your display style (e.g. "11 July 2023")
-      const formattedStartDate = data.startDate
-        ? new Date(data.startDate).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
-        : "";
+    const formattedEndDate = data.currentlyWorking
+      ? "till"
+      : data.endDate
+      ? new Date(data.endDate).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        })
+      : "till";
 
-      const formattedEndDate = data.currentlyWorking
-        ? "till"
-        : data.endDate
-        ? new Date(data.endDate).toLocaleDateString("en-GB", {
-            day: "numeric",
-            month: "long",
-            year: "numeric",
-          })
-        : "till";
+    const payload = {
+      designation: data.designation,
+      organization: data.organization,
+      institutionDetails: data.institutionDetails || "",
+      topicsOrAddress: data.topicsOrAddress || "",
+      startDate: formattedStartDate,
+      endDate: formattedEndDate,
+      currentlyWorking: data.currentlyWorking,
+      websiteLink: data.websiteLink || "",
+      createdAt: new Date().toISOString(),
+    };
 
-      const newExperience = {
-        designation: data.designation,
-        organization: data.organization,
-        institutionDetails: data.institutionDetails || "",
-        topicsOrAddress: data.topicsOrAddress || "",
-        startDate: formattedStartDate,
-        endDate: formattedEndDate,
-        currentlyWorking: data.currentlyWorking,
-        websiteLink: data.websiteLink || "",
-        createdAt: new Date().toISOString(),
-      };
-
-      const backendRes = await fetch("http://localhost:3000/experiences", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newExperience),
-      });
-
-      if (!backendRes.ok) {
-        throw new Error("Failed to save experience details.");
-      }
-
-      toast.success("Experience added successfully! 🎉");
-
-      reset();
-
-      setTimeout(() => {
-        navigate("/experience/all");
-      }, 2000);
-    } catch (err) {
-      console.error("Submission Error:", err);
-      toast.error(err.message || "Something went wrong!");
-    } finally {
-      setLoading(false);
-    }
+    createExperience(payload);
   };
 
   return (
@@ -271,7 +266,7 @@ const AddExperience = () => {
                 />
               </div>
 
-              {/* START DATE (CUSTOM DATEPICKER) */}
+              {/* START DATE */}
               <div className="relative" ref={startDatePickerRef}>
                 <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
                   Start Date / From <span className="text-rose-500">*</span>
@@ -399,7 +394,7 @@ const AddExperience = () => {
                 )}
               </div>
 
-              {/* END DATE (CUSTOM DATEPICKER) */}
+              {/* END DATE */}
               <div className="relative" ref={endDatePickerRef}>
                 <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
                   End Date / To
