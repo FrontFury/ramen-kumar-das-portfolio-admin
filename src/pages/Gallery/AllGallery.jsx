@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import {
   Eye, Edit3, Trash2, X, Loader2, Image as ImageIcon,
   MapPin, Calendar, Tag, Sparkles, Upload, CheckCircle2,
@@ -7,41 +6,72 @@ import {
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AllGallery = () => {
-  const [gallery, setGallery] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [updating, setUpdating] = useState(false);
   const [modalImgUrl, setModalImgUrl] = useState("");
   const [activeImage, setActiveImage] = useState(null);
+
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const {
     register,
     handleSubmit,
     reset,
     setValue,
-    formState: { errors },
   } = useForm();
 
-  const fetchGallery = async () => {
-    setLoading(true);
-    try {
-      const res = await axios.get("http://localhost:3000/gallery");
-      setGallery(res.data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load gallery items.");
-    }finally {
-      setLoading(false);
-    }
-  };
+  // 1. Fetch Gallery Data with TanStack useQuery
+  const {
+    data: gallery = [],
+    isLoading,
+    isRefetching,
+    refetch,
+  } = useQuery({
+    queryKey: ["gallery"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/gallery");
+      return res.data;
+    },
+  });
 
-  useEffect(() => {
-    fetchGallery();
-  }, []);
+  // 2. Delete Gallery Item Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await axiosSecure.delete(`/gallery/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Photo removed from gallery! 🗑️");
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Error deleting gallery item!");
+    },
+  });
+
+  // 3. Update Gallery Item Mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const res = await axiosSecure.patch(`/gallery/${id}`, updatedData);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Gallery item updated! ✨");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to update item.");
+    },
+  });
 
   const handleView = (item) => {
     setSelectedItem(item);
@@ -78,43 +108,23 @@ const AllGallery = () => {
     reader.readAsDataURL(file);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this photo item?")) return;
-
-    try {
-      await axios.delete(`http://localhost:3000/gallery/${id}`);
-      toast.success("Photo removed from gallery! 🗑️");
-      setGallery((prev) => prev.filter((item) => (item.id || item._id) !== id));
-    } catch (err) {
-      console.error(err);
-      toast.error("Error deleting gallery item!");
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this photo item?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  const onUpdateSubmit = async (data) => {
-    setUpdating(true);
+  const onUpdateSubmit = (data) => {
     const targetId = selectedItem.id || selectedItem._id;
+    const updatedData = {
+      category: data.category,
+      title: data.title,
+      location: data.location,
+      date: data.date,
+      imageUrl: modalImgUrl || data.imageUrlInput || "",
+    };
 
-    try {
-      const updatedData = {
-        category: data.category,
-        title: data.title,
-        location: data.location,
-        date: data.date,
-        imageUrl: modalImgUrl || data.imageUrlInput || "",
-      };
-
-      await axios.patch(`http://localhost:3000/gallery/${targetId}`, updatedData);
-
-      toast.success("Gallery item updated! ✨");
-      setIsEditModalOpen(false);
-      fetchGallery();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update item.");
-    } finally {
-      setUpdating(false);
-    }
+    updateMutation.mutate({ id: targetId, updatedData });
   };
 
   return (
@@ -143,11 +153,12 @@ const AllGallery = () => {
 
             <div className="flex items-center gap-3">
               <button
-                onClick={fetchGallery}
-                className="p-2.5 bg-emerald-950/80 border border-emerald-800/50 hover:border-emerald-500/50 text-emerald-200 hover:text-white rounded-xl transition-all shadow-sm cursor-pointer"
+                onClick={() => refetch()}
+                disabled={isRefetching}
+                className="p-2.5 bg-emerald-950/80 border border-emerald-800/50 hover:border-emerald-500/50 text-emerald-200 hover:text-white rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50"
                 title="Refresh Gallery"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className={`w-4 h-4 ${isRefetching ? "animate-spin" : ""}`} />
               </button>
               <div className="bg-emerald-950/80 border border-emerald-800/50 px-4 py-2.5 rounded-xl flex items-center gap-2.5 text-xs font-semibold text-emerald-300 shadow-sm">
                 <Clock className="w-4 h-4 text-amber-400" />
@@ -157,7 +168,7 @@ const AllGallery = () => {
           </div>
         </div>
 
-        {loading ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center p-20 bg-white rounded-3xl border border-slate-200/80 shadow-sm">
             <Loader2 className="w-10 h-10 text-emerald-700 animate-spin mb-4" />
             <p className="text-sm text-slate-600 font-semibold tracking-wide">Loading gallery collection...</p>
@@ -242,7 +253,8 @@ const AllGallery = () => {
 
                       <button
                         onClick={() => handleDelete(id)}
-                        className="flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 rounded-xl text-xs font-semibold transition-all cursor-pointer"
+                        disabled={deleteMutation.isPending}
+                        className="flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-600 rounded-xl text-xs font-semibold transition-all cursor-pointer disabled:opacity-50"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                         <span>Delete</span>
@@ -377,10 +389,10 @@ const AllGallery = () => {
 
               <button
                 type="submit"
-                disabled={updating}
+                disabled={updateMutation.isPending}
                 className="w-full py-3 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-70 mt-4"
               >
-                {updating ? (
+                {updateMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" /> Updating Gallery...
                   </>
