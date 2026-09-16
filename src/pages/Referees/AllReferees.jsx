@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   GraduationCap, 
   Building2, 
@@ -17,30 +17,56 @@ import {
   Sparkles,
   UserCheck
 } from "lucide-react";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AllReferees = () => {
-  const [referees, setReferees] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [editingReferee, setEditingReferee] = useState(null);
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const { register, handleSubmit, reset, setValue } = useForm();
 
-  // GET: Fetch all referees
-  const fetchReferees = async () => {
-    try {
-      const res = await axios.get("http://localhost:3000/referees");
-      setReferees(res.data);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to fetch referees.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // GET: Fetch all referees with TanStack Query
+  const { data: referees = [], isLoading: loading } = useQuery({
+    queryKey: ["referees"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/referees");
+      return res.data;
+    },
+  });
 
-  useEffect(() => {
-    fetchReferees();
-  }, []);
+  // DELETE: Delete referee mutation
+  const { mutate: deleteReferee } = useMutation({
+    mutationFn: async (id) => {
+      await axiosSecure.delete(`/referees/${id}`);
+    },
+    onSuccess: () => {
+      toast.success("Referee deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["referees"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to delete referee.");
+    },
+  });
+
+  // PATCH: Update referee mutation
+  const { mutate: updateReferee, isPending: isUpdating } = useMutation({
+    mutationFn: async ({ id, data }) => {
+      const res = await axiosSecure.patch(`/referees/${id}`, data);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Referee details updated successfully!");
+      setEditingReferee(null);
+      reset();
+      queryClient.invalidateQueries({ queryKey: ["referees"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to update referee.");
+    },
+  });
 
   // Copy text to clipboard
   const handleCopy = (text) => {
@@ -48,16 +74,10 @@ const AllReferees = () => {
     toast.success("Copied to clipboard!");
   };
 
-  // DELETE: Remove referee
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this referee?")) return;
-    try {
-      await axios.delete(`http://localhost:3000/referees/${id}`);
-      toast.success("Referee deleted successfully!");
-      setReferees(referees.filter((item) => item._id !== id && item.id !== id));
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete referee.");
+  // Trigger delete operation
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this referee?")) {
+      deleteReferee(id);
     }
   };
 
@@ -74,23 +94,10 @@ const AllReferees = () => {
     setValue("secondaryEmail", referee.secondaryEmail || "");
   };
 
-  // PATCH: Update referee
-  const onUpdate = async (data) => {
+  // Submit update form handler
+  const onUpdate = (data) => {
     const targetId = editingReferee._id || editingReferee.id;
-    try {
-      // API call using PATCH method
-      const res = await axios.patch(`http://localhost:3000/referees/${targetId}`, data);
-      
-      if (res.data?.success || res.status === 200) {
-        toast.success("Referee details updated successfully!");
-        setEditingReferee(null);
-        reset();
-        fetchReferees(); // Reload list to display fresh data
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.message || "Failed to update referee.");
-    }
+    updateReferee({ id: targetId, data });
   };
 
   if (loading) {
@@ -314,10 +321,20 @@ const AllReferees = () => {
               <div className="pt-2">
                 <button
                   type="submit"
-                  className="w-full py-3.5 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+                  disabled={isUpdating}
+                  className="w-full py-3.5 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-bold rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg cursor-pointer disabled:opacity-70"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Update Referee</span>
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Update Referee</span>
+                    </>
+                  )}
                 </button>
               </div>
             </form>
