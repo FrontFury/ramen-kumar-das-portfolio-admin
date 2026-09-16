@@ -1,24 +1,26 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, UploadCloud, Loader2, Sparkles } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AddResearch = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const editData = location.state?.research || null;
 
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
   const [selectedFile, setSelectedFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const {
     register,
     handleSubmit,
-    setValue,
     reset,
     formState: { errors },
   } = useForm({
@@ -62,19 +64,12 @@ const AddResearch = () => {
     }
   };
 
-  // POST or PATCH Submit Handler
-  const onSubmit = async (data) => {
-    setLoading(true);
+  // TanStack Mutation for Save/Update
+  const { mutate: submitResearch, isPending: loading } = useMutation({
+    mutationFn: async (formData) => {
+      let finalCertificateUrl = formData.certificateUrl;
 
-    const id = editData?._id || editData?.id;
-    const url = id
-      ? `http://localhost:3000/researches/${id}`
-      : "http://localhost:3000/researches";
-
-    try {
-      let finalCertificateUrl = data.certificateUrl;
-
-      // যদি ফাইল চুজ বা ড্র্যাগ-অ্যান্ড-ড্রপ করা হয়ে থাকে
+      // Upload image to ImgBB if selected
       if (selectedFile) {
         const imgData = new FormData();
         imgData.append("image", selectedFile);
@@ -97,26 +92,34 @@ const AddResearch = () => {
       }
 
       const payload = {
-        ...data,
+        ...formData,
         certificateUrl: finalCertificateUrl,
         updatedAt: new Date().toISOString(),
       };
 
-      if (id) {
-        await axios.patch(url, payload);
-        toast.success("Research updated successfully!");
-      } else {
-        await axios.post(url, payload);
-        toast.success("Research added successfully!");
-      }
+      const id = editData?._id || editData?.id;
 
-      setTimeout(() => navigate("/research/all"), 1500);
-    } catch (err) {
+      if (id) {
+        const res = await axiosSecure.patch(`/researches/${id}`, payload);
+        return res.data;
+      } else {
+        const res = await axiosSecure.post("/researches", payload);
+        return res.data;
+      }
+    },
+    onSuccess: () => {
+      toast.success(editData ? "Research updated successfully!" : "Research added successfully!");
+      queryClient.invalidateQueries({ queryKey: ["researches"] });
+      setTimeout(() => navigate("/research/all"), 1200);
+    },
+    onError: (err) => {
       console.error("Submission error:", err);
       toast.error(err.message || err.response?.data?.message || "Operation failed!");
-    } finally {
-      setLoading(false);
-    }
+    },
+  });
+
+  const onSubmit = (data) => {
+    submitResearch(data);
   };
 
   return (
