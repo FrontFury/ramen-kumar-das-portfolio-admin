@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Eye,
   Edit3,
@@ -16,15 +16,17 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AllExperience = () => {
-  const [experiences, setExperiences] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
   const [selectedExp, setSelectedExp] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [updating, setUpdating] = useState(false);
 
   const {
     register,
@@ -36,32 +38,64 @@ const AllExperience = () => {
 
   const isCurrentlyWorking = watch("currentlyWorking", false);
 
-  // GET: Fetch Experiences
-  const fetchExperiences = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/experiences");
-      if (!res.ok) throw new Error("Failed to fetch experiences");
-      const data = await res.json();
-      setExperiences(data);
-    } catch (err) {
+  // --- 1. GET: Fetch Experiences ---
+  const {
+    data: experiences = [],
+    isLoading: loading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["experiences"],
+    queryFn: async () => {
+      const response = await axiosSecure.get("/experiences");
+      return response.data;
+    },
+  });
+
+  // --- 2. DELETE: Remove Experience Mutation ---
+  const { mutate: deleteExperience } = useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosSecure.delete(`/experiences/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Experience record deleted! 🗑️");
+      queryClient.invalidateQueries({ queryKey: ["experiences"] });
+    },
+    onError: (err) => {
       console.error(err);
-      toast.error("Failed to load experience list.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      toast.error(err?.response?.data?.message || "Error deleting item!");
+    },
+  });
 
-  useEffect(() => {
-    fetchExperiences();
-  }, []);
+  // --- 3. PATCH: Update Experience Mutation ---
+  const { mutate: updateExperience, isPending: updating } = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const response = await axiosSecure.patch(
+        `/experiences/${id}`,
+        updatedData
+      );
+      return response.data;
+    },
+    onSuccess: () => {
+      toast.success("Experience updated successfully! ✨");
+      setIsEditModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["experiences"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(
+        err?.response?.data?.message || err?.message || "Failed to update."
+      );
+    },
+  });
 
-  // Open View Modal
+  // Modal Handlers
   const handleView = (exp) => {
     setSelectedExp(exp);
     setIsViewModalOpen(true);
   };
 
-  // Open Edit Modal
   const handleEdit = (exp) => {
     setSelectedExp(exp);
     reset({
@@ -77,76 +111,41 @@ const AllExperience = () => {
     setIsEditModalOpen(true);
   };
 
-  // DELETE: Remove Experience
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this experience record?"))
-      return;
-
-    try {
-      const res = await fetch(`http://localhost:3000/experiences/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Failed to delete experience.");
-
-      toast.success("Experience record deleted! 🗑️");
-      setExperiences((prev) =>
-        prev.filter((item) => item.id !== id && item._id !== id)
-      );
-    } catch (err) {
-      console.error(err);
-      toast.error("Error deleting item!");
+  const handleDelete = (id) => {
+    if (
+      window.confirm("Are you sure you want to delete this experience record?")
+    ) {
+      deleteExperience(id);
     }
   };
 
-  // PATCH: Update Experience
-  const onUpdateSubmit = async (data) => {
-    setUpdating(true);
+  const onUpdateSubmit = (data) => {
+    const updatedData = {
+      designation: data.designation,
+      organization: data.organization,
+      institutionDetails: data.institutionDetails || "",
+      topicsOrAddress: data.topicsOrAddress || "",
+      startDate: data.startDate,
+      endDate: data.currentlyWorking ? "till" : data.endDate || "till",
+      currentlyWorking: data.currentlyWorking || false,
+      websiteLink: data.websiteLink || "",
+    };
 
-    try {
-      const updatedData = {
-        designation: data.designation,
-        organization: data.organization,
-        institutionDetails: data.institutionDetails || "",
-        topicsOrAddress: data.topicsOrAddress || "",
-        startDate: data.startDate,
-        endDate: data.currentlyWorking ? "till" : data.endDate || "till",
-        currentlyWorking: data.currentlyWorking || false,
-        websiteLink: data.websiteLink || "",
-      };
-
-      const targetId = selectedExp.id || selectedExp._id;
-
-      const backendRes = await fetch(
-        `http://localhost:3000/experiences/${targetId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedData),
-        }
-      );
-
-      if (!backendRes.ok) throw new Error("Failed to update experience data.");
-
-      toast.success("Experience updated successfully! ✨");
-      setIsEditModalOpen(false);
-      fetchExperiences();
-    } catch (err) {
-      console.error(err);
-      toast.error(err.message || "Failed to update.");
-    } finally {
-      setUpdating(false);
-    }
+    const targetId = selectedExp.id || selectedExp._id;
+    updateExperience({ id: targetId, updatedData });
   };
+
+  if (isError) {
+    toast.error(error?.message || "Failed to load experience list.");
+  }
 
   return (
     <div className="w-full bg-[#F8FAFC] min-h-screen font-sans p-4 sm:p-6 lg:pr-24">
       <div className="max-w-5xl mx-auto space-y-8">
-        
         {/* HERO / HEADER SECTION */}
         <div className="relative overflow-hidden bg-gradient-to-br from-[#163A2D] via-[#102a21] to-[#0A1C16] text-white p-6 sm:p-8 rounded-3xl shadow-xl border border-emerald-900/50">
           <div className="absolute top-0 right-0 -mt-8 -mr-8 w-64 h-64 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          
+
           <div className="relative z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
             <div className="flex items-center gap-5">
               <div className="p-4 bg-emerald-500/10 border border-emerald-500/20 text-amber-300 rounded-2xl backdrop-blur-md shadow-inner">
@@ -185,7 +184,9 @@ const AllExperience = () => {
             <div className="w-12 h-12 bg-emerald-50 text-emerald-700 rounded-2xl flex items-center justify-center mx-auto">
               <Briefcase className="w-6 h-6" />
             </div>
-            <p className="text-base font-bold text-gray-700">No Experiences Found</p>
+            <p className="text-base font-bold text-gray-700">
+              No Experiences Found
+            </p>
             <p className="text-xs text-gray-400 max-w-sm mx-auto">
               Start building your professional resume by adding your past or present job roles.
             </p>
@@ -209,7 +210,6 @@ const AllExperience = () => {
 
                   {/* Experience Card */}
                   <div className="bg-white rounded-2xl border border-emerald-100/80 shadow-xs hover:shadow-lg hover:border-emerald-300 transition-all duration-300 p-6 space-y-4">
-                    
                     {/* Header Row: Role & Actions */}
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4">
                       <div>
@@ -283,7 +283,8 @@ const AllExperience = () => {
                       <div className="flex items-center gap-1.5 bg-emerald-50/50 px-3 py-1.5 rounded-lg border border-emerald-100/60 text-emerald-900">
                         <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                         <span>
-                          {exp.startDate} &mdash; {isPresent ? "Present" : exp.endDate}
+                          {exp.startDate} &mdash;{" "}
+                          {isPresent ? "Present" : exp.endDate}
                         </span>
                       </div>
 
@@ -299,7 +300,6 @@ const AllExperience = () => {
                         </a>
                       )}
                     </div>
-
                   </div>
                 </div>
               );
@@ -327,7 +327,9 @@ const AllExperience = () => {
                 <h2 className="text-xl font-bold text-[#163A2D] font-['Playfair_Display',serif]">
                   Experience Overview
                 </h2>
-                <p className="text-xs text-gray-400">Detailed record inspection</p>
+                <p className="text-xs text-gray-400">
+                  Detailed record inspection
+                </p>
               </div>
             </div>
 
@@ -372,7 +374,11 @@ const AllExperience = () => {
                     Duration
                   </span>
                   <p className="text-xs font-bold text-emerald-950 mt-1">
-                    {selectedExp.startDate} &mdash; {selectedExp.currentlyWorking || selectedExp.endDate === "till" ? "Present" : selectedExp.endDate}
+                    {selectedExp.startDate} &mdash;{" "}
+                    {selectedExp.currentlyWorking ||
+                    selectedExp.endDate === "till"
+                      ? "Present"
+                      : selectedExp.endDate}
                   </p>
                 </div>
 
