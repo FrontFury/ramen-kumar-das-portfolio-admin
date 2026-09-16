@@ -1,18 +1,30 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
-import { Award, Hash, Building2, Calendar, Image as ImageIcon, ArrowLeft, Loader2, Save, Upload, X } from "lucide-react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  Award,
+  Hash,
+  Building2,
+  Calendar,
+  Image as ImageIcon,
+  ArrowLeft,
+  Loader2,
+  Save,
+  Upload,
+  X,
+} from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AddCourse = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
   const editData = location.state?.course || null;
 
-  const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  
-  // লোকাল সিলেক্ট করা ইমেজের File অবজেক্ট সংরক্ষণের জন্য স্টেট
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
@@ -37,16 +49,45 @@ const AddCourse = () => {
     }
   }, [editData]);
 
+  // 1. TanStack Query Mutation (Add / Update)
+  const courseMutation = useMutation({
+    mutationFn: async ({ isEdit, id, payload }) => {
+      if (isEdit) {
+        const res = await axiosSecure.patch(`/courses/${id}`, payload);
+        return res.data;
+      } else {
+        const res = await axiosSecure.post("/courses", payload);
+        return res.data;
+      }
+    },
+    onSuccess: () => {
+      // ক্যাশ ক্লিয়ার / ইনভ্যালিডেট করে ডাটা রিফ্রেশ করা
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+      
+      toast.success(
+        editData ? "Course updated successfully!" : "Course added successfully!"
+      );
+      setTimeout(() => navigate("/courses/all"), 1200);
+    },
+    onError: (err) => {
+      console.error("Submission error:", err);
+      toast.error(
+        err.response?.data?.message ||
+          err.message ||
+          (editData ? "Failed to update course!" : "Failed to add course!")
+      );
+    },
+  });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (name === "certificateUrl") {
       setPreviewUrl(value);
-      setSelectedFile(null); // ইউআরএল ম্যানুয়ালি দিলে ফাইল ক্লিয়ার হবে
+      setSelectedFile(null);
     }
   };
 
-  // ছবি প্রসেস করার ফাংশন
   const handleFileProcess = (file) => {
     if (!file) return;
 
@@ -70,7 +111,6 @@ const AddCourse = () => {
     handleFileProcess(file);
   };
 
-  // Drag & Drop হ্যান্ডলার
   const handleDragOver = (e) => {
     e.preventDefault();
     setIsDragging(true);
@@ -89,7 +129,7 @@ const AddCourse = () => {
   };
 
   const removeImage = (e) => {
-    e.stopPropagation(); // যাতে ছবি রিমুভ বাটনে ক্লিক করলে ফাইল ডায়ালগ না খুলে
+    e.stopPropagation();
     e.preventDefault();
     setSelectedFile(null);
     setPreviewUrl("");
@@ -98,14 +138,12 @@ const AddCourse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
     const id = editData?._id || editData?.id;
 
     try {
       let finalCertificateUrl = formData.certificateUrl;
 
-      // যদি ইউজার লোকাল কোনো ফাইল সিলেক্ট করে থাকে তবে সেটি ImageBB-তে আপলোড হবে
+      // ImageBB ইমেজেস আপলোড লজিক
       if (selectedFile) {
         const imgData = new FormData();
         imgData.append("image", selectedFile);
@@ -132,19 +170,14 @@ const AddCourse = () => {
         certificateUrl: finalCertificateUrl,
       };
 
-      if (editData) {
-        await axios.patch(`http://localhost:3000/courses/${id}`, payload);
-        toast.success("Course updated successfully!");
-      } else {
-        await axios.post("http://localhost:3000/courses", payload);
-        toast.success("Course added successfully!");
-      }
-      setTimeout(() => navigate("/courses/all"), 1200);
+      // Mutation ট্রিগার করা
+      courseMutation.mutate({
+        isEdit: !!editData,
+        id,
+        payload,
+      });
     } catch (err) {
-      console.error("Submission error:", err);
-      toast.error(err.message || (editData ? "Failed to update course!" : "Failed to add course!"));
-    } finally {
-      setLoading(false);
+      toast.error(err.message || "An error occurred during submission.");
     }
   };
 
@@ -160,7 +193,9 @@ const AddCourse = () => {
             {editData ? "Edit Certification / Course" : "Add New Course"}
           </h1>
           <p className="text-xs sm:text-sm text-emerald-100/80">
-            {editData ? "Update existing course details." : "Fill in the details to add a new course or certificate."}
+            {editData
+              ? "Update existing course details."
+              : "Fill in the details to add a new course or certificate."}
           </p>
         </div>
         <button
@@ -172,9 +207,11 @@ const AddCourse = () => {
       </div>
 
       {/* Form Card */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm space-y-6">
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-3xl border border-gray-100 p-6 sm:p-8 shadow-sm space-y-6"
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          
           {/* Title */}
           <div className="md:col-span-2 space-y-2">
             <label className="text-xs font-bold text-gray-700 flex items-center gap-2 uppercase tracking-wider">
@@ -243,8 +280,7 @@ const AddCourse = () => {
             <span className="text-xs font-bold text-gray-700 flex items-center gap-2 uppercase tracking-wider">
               <ImageIcon className="w-4 h-4 text-emerald-600" /> Certificate Image (Upload or URL)
             </span>
-            
-            {/* Clickable Full Box */}
+
             <label
               onDragOver={handleDragOver}
               onDragLeave={handleDragLeave}
@@ -286,7 +322,9 @@ const AddCourse = () => {
                     <p className="text-sm font-semibold text-gray-700">
                       Click anywhere or Drag & Drop your certificate image here
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">Supports PNG, JPG, JPEG, WEBP (Max 5MB)</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      Supports PNG, JPG, JPEG, WEBP (Max 5MB)
+                    </p>
                   </div>
                 </>
               )}
@@ -294,7 +332,9 @@ const AddCourse = () => {
 
             {/* Direct Image URL Input */}
             <div className="pt-2">
-              <span className="text-xs text-gray-400 font-medium block mb-1">Or paste an Image URL directly:</span>
+              <span className="text-xs text-gray-400 font-medium block mb-1">
+                Or paste an Image URL directly:
+              </span>
               <input
                 type="url"
                 name="certificateUrl"
@@ -311,10 +351,14 @@ const AddCourse = () => {
         <div className="pt-4 flex justify-end">
           <button
             type="submit"
-            disabled={loading}
+            disabled={courseMutation.isPending}
             className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-[#163A2D] font-bold text-sm rounded-2xl shadow-lg hover:shadow-amber-500/20 flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {courseMutation.isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Save className="w-4 h-4" />
+            )}
             {editData ? "Update Course" : "Save Course"}
           </button>
         </div>
