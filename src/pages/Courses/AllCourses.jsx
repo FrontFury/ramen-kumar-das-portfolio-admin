@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Trash2, 
   Edit3, 
@@ -17,41 +17,52 @@ import {
   CheckCircle2
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure";
 
 const AllCourses = () => {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(null);
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
-  const fetchCourses = async () => {
-    try {
-      const response = await axios.get("http://localhost:3000/courses");
-      setCourses(response.data);
-    } catch (err) {
-      toast.error("Failed to load courses!");
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 1. Fetch Courses using TanStack Query
+  const {
+    data: courses = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["courses"],
+    queryFn: async () => {
+      const response = await axiosSecure.get("/courses");
+      return response.data;
+    },
+  });
 
-  useEffect(() => {
-    fetchCourses();
-  }, []);
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this course certification?")) return;
-
-    try {
-      await axios.delete(`http://localhost:3000/courses/${id}`);
+  // 2. Delete Course Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const response = await axiosSecure.delete(`/courses/${id}`);
+      return response.data;
+    },
+    onSuccess: () => {
       toast.success("Course deleted successfully!");
-      setCourses((prev) => prev.filter((item) => (item._id || item.id) !== id));
-    } catch (err) {
-      toast.error("Failed to delete course!");
+      // ক্যাশ ইনভ্যালিডেট করে নতুন ডাটা স্বয়ংক্রিয়ভাবে ফেচ করা
+      queryClient.invalidateQueries({ queryKey: ["courses"] });
+    },
+    onError: (err) => {
+      console.error("Delete Error:", err);
+      toast.error(err.response?.data?.message || err.message || "Failed to delete course!");
+    },
+  });
+
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this course certification?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
         <div className="relative flex items-center justify-center">
@@ -61,6 +72,15 @@ const AllCourses = () => {
         <p className="text-sm font-bold tracking-wide text-emerald-950 animate-pulse">
           FETCHING CERTIFICATIONS...
         </p>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-2 text-rose-600">
+        <p className="font-bold">Failed to load courses!</p>
+        <p className="text-xs text-gray-500">{error?.message}</p>
       </div>
     );
   }
@@ -212,9 +232,15 @@ const AllCourses = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(id)}
-                      className="px-4 py-2 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all duration-300 shadow-sm hover:shadow-rose-600/20 active:scale-95 cursor-pointer"
+                      disabled={deleteMutation.isPending}
+                      className="px-4 py-2 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all duration-300 shadow-sm hover:shadow-rose-600/20 active:scale-95 cursor-pointer disabled:opacity-50"
                     >
-                      <Trash2 className="w-3.5 h-3.5" /> Delete
+                      {deleteMutation.isPending ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-3.5 h-3.5" />
+                      )}
+                      <span>Delete</span>
                     </button>
                   </div>
                 </div>
