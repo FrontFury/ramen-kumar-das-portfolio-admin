@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 import { 
   Presentation, 
   Building2, 
@@ -17,12 +18,13 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 
 const AddWorkshops = () => {
-  const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -30,6 +32,31 @@ const AddWorkshops = () => {
     reset,
     formState: { errors },
   } = useForm();
+
+  // TanStack Query Mutation for adding a workshop
+  const { mutateAsync: addWorkshop, isPending } = useMutation({
+    mutationFn: async (newWorkshop) => {
+      const res = await axiosSecure.post("/workshops", newWorkshop);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Workshop added successfully!");
+      // Invalidate workshops list query to refresh cached data
+      queryClient.invalidateQueries({ queryKey: ["workshops"] });
+      
+      reset();
+      setSelectedFile(null);
+      setPreviewUrl("");
+
+      setTimeout(() => {
+        navigate("/workshops/all");
+      }, 1000);
+    },
+    onError: (error) => {
+      console.error("Error adding workshop:", error);
+      toast.error(error?.response?.data?.message || error.message || "Failed to add workshop!");
+    },
+  });
 
   // Selected file validation and preview setup
   const handleFileProcess = (file) => {
@@ -73,9 +100,8 @@ const AddWorkshops = () => {
     setPreviewUrl("");
   };
 
-  // Submit Handler with ImageBB Upload
+  // Submit Handler with ImageBB Upload & Mutation
   const onSubmit = async (data) => {
-    setLoading(true);
     try {
       let finalCertificateUrl = data.certificateUrlInput || "";
 
@@ -109,22 +135,11 @@ const AddWorkshops = () => {
         certificateUrl: finalCertificateUrl,
       };
 
-      await axios.post("http://localhost:3000/workshops", payload);
-      toast.success("Workshop added successfully!");
-      
-      reset();
-      setSelectedFile(null);
-      setPreviewUrl("");
+      // Trigger TanStack Query Mutation
+      await addWorkshop(payload);
 
-      // Redirect to /workshops/all after a short delay
-      setTimeout(() => {
-        navigate("/workshops/all");
-      }, 1000);
     } catch (error) {
-      console.error("Error adding workshop:", error);
-      toast.error(error.message || "Failed to add workshop!");
-    } finally {
-      setLoading(false);
+      toast.error(error.message || "Something went wrong during submission!");
     }
   };
 
@@ -289,10 +304,10 @@ const AddWorkshops = () => {
           <div className="pt-4 flex justify-end">
             <button
               type="submit"
-              disabled={loading}
+              disabled={isPending}
               className="w-full sm:w-auto px-8 py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-[#0D251D] font-extrabold text-xs uppercase tracking-wider rounded-2xl shadow-lg flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
             >
-              {loading ? (
+              {isPending ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>

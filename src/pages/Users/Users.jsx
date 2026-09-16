@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 import { 
   Users as UsersIcon, 
   Search, 
@@ -16,18 +18,13 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 
 const Users = () => {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Modal State for Editing User
+  // Modal States
   const [editingUser, setEditingUser] = useState(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-
-  // Modal States for Deleting User
   const [deletingUser, setDeletingUser] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteSuccessModal, setShowDeleteSuccessModal] = useState(false);
 
   // Custom Toast Style Options
@@ -35,7 +32,7 @@ const Users = () => {
     duration: 3000,
     style: {
       background: "#163A2D",
-      color: "#FDE68A", // Amber-200
+      color: "#FDE68A",
       fontSize: "14px",
       fontWeight: "600",
       borderRadius: "12px",
@@ -44,92 +41,68 @@ const Users = () => {
     },
   };
 
-  // Fetch Users Data
-  const fetchUsers = async () => {
-    setLoading(true);
-    try {
-      const response = await fetch("http://localhost:3000/users");
-      if (!response.ok) throw new Error("Failed to fetch users");
-      const data = await response.json();
-      setUsers(data);
-      setError("");
-    } catch (err) {
-      console.error("Fetch Error:", err);
-      setError("Failed to load users from the server.");
-      toast.error("Could not load user data!", toastOptions);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 1. Fetch Users Query
+  const { data: users = [], isLoading, isError } = useQuery({
+    queryKey: ["users"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/users");
+      return res.data;
+    },
+  });
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // Delete User Confirmation & Execution
-  const confirmDelete = async () => {
-    if (!deletingUser) return;
-    const id = deletingUser._id || deletingUser.id;
-    setIsDeleting(true);
-
-    try {
-      const response = await fetch(`http://localhost:3000/users/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!response.ok) throw new Error("Failed to delete user");
-
-      setUsers((prevUsers) => prevUsers.filter((user) => (user._id || user.id) !== id));
-      
+  // 2. Delete User Mutation
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId) => {
+      const res = await axiosSecure.delete(`/users/${userId}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       setDeletingUser(null);
       setShowDeleteSuccessModal(true);
-    } catch (err) {
+    },
+    onError: (err) => {
       console.error("Delete Error:", err);
       toast.error("Failed to delete user!", toastOptions);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    },
+  });
 
-  // Update User Handler
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    setIsUpdating(true);
-
-    const userId = editingUser._id || editingUser.id;
-    const lowercasedRole = editingUser.role ? editingUser.role.toLowerCase() : "user";
-
-    try {
-      const response = await fetch(`http://localhost:3000/users/${userId}/role`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          fullName: editingUser.fullName || editingUser.name,
-          email: editingUser.email,
-          role: lowercasedRole,
-        }),
-      });
-
-      if (!response.ok) throw new Error("Failed to update user");
-
-      setUsers((prevUsers) =>
-        prevUsers.map((u) =>
-          (u._id || u.id) === userId
-            ? { ...editingUser, role: lowercasedRole }
-            : u
-        )
-      );
-
+  // 3. Update User Mutation
+  const updateUserMutation = useMutation({
+    mutationFn: async (updatedData) => {
+      const userId = updatedData._id || updatedData.id;
+      const res = await axiosSecure.patch(`/users/${userId}/role`, updatedData);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["users"] });
       setEditingUser(null);
       toast.success("User updated successfully! 🎉", toastOptions);
-    } catch (err) {
+    },
+    onError: (err) => {
       console.error("Update Error:", err);
       toast.error("Failed to update user details!", toastOptions);
-    } finally {
-      setIsUpdating(false);
-    }
+    },
+  });
+
+  // Action Handlers
+  const confirmDelete = () => {
+    if (!deletingUser) return;
+    const id = deletingUser._id || deletingUser.id;
+    deleteUserMutation.mutate(id);
+  };
+
+  const handleUpdate = (e) => {
+    e.preventDefault();
+    const lowercasedRole = editingUser.role ? editingUser.role.toLowerCase() : "user";
+
+    updateUserMutation.mutate({
+      _id: editingUser._id,
+      id: editingUser.id,
+      fullName: editingUser.fullName || editingUser.name,
+      email: editingUser.email,
+      role: lowercasedRole,
+    });
   };
 
   // Filter Users
@@ -233,13 +206,15 @@ const Users = () => {
 
         {/* User Data Table */}
         <div className="overflow-x-auto">
-          {loading ? (
+          {isLoading ? (
             <div className="flex items-center justify-center py-12 text-emerald-800 gap-2 font-medium">
               <Loader2 className="w-5 h-5 animate-spin text-emerald-600" />
               Loading users...
             </div>
-          ) : error ? (
-            <div className="p-8 text-center text-red-500 font-medium text-sm">{error}</div>
+          ) : isError ? (
+            <div className="p-8 text-center text-red-500 font-medium text-sm">
+              Failed to load users from the server.
+            </div>
           ) : (
             <table className="w-full text-left border-collapse">
               <thead>
@@ -404,10 +379,10 @@ const Users = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isUpdating}
+                  disabled={updateUserMutation.isPending}
                   className="px-4 py-2 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 text-xs font-semibold rounded-lg flex items-center gap-1.5"
                 >
-                  {isUpdating && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  {updateUserMutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
                   Save Changes
                 </button>
               </div>
@@ -440,10 +415,10 @@ const Users = () => {
               <button
                 type="button"
                 onClick={confirmDelete}
-                disabled={isDeleting}
+                disabled={deleteUserMutation.isPending}
                 className="w-full py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-md"
               >
-                {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Yes, Delete"}
+                {deleteUserMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Yes, Delete"}
               </button>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Eye,
   Edit3,
@@ -6,7 +6,6 @@ import {
   X,
   Loader2,
   Award,
-  ExternalLink,
   Calendar,
   Building2,
   Sparkles,
@@ -14,50 +13,77 @@ import {
   CheckCircle2,
   Tag,
   Upload,
-  Presentation,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import toast, { Toaster } from "react-hot-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AllWorkshops = () => {
-  const [workshops, setWorkshops] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedWorkshop, setSelectedWorkshop] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [updating, setUpdating] = useState(false);
   
   // Image states for Edit Modal
   const [selectedModalFile, setSelectedModalFile] = useState(null);
   const [modalPreviewUrl, setModalPreviewUrl] = useState("");
   const [activeImage, setActiveImage] = useState(null);
 
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
   const {
     register,
     handleSubmit,
     reset,
-    setValue,
-    formState: { errors },
   } = useForm();
 
-  // GET: Fetch Workshops
-  const fetchWorkshops = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/workshops");
-      if (!res.ok) throw new Error("Failed to fetch workshops");
-      const data = await res.json();
-      setWorkshops(data);
-    } catch (err) {
+  // 1. GET: Fetch Workshops via TanStack Query
+  const { data: workshops = [], isLoading } = useQuery({
+    queryKey: ["workshops"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/workshops");
+      return res.data;
+    },
+    onError: (err) => {
       console.error(err);
       toast.error("Failed to load workshops list.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+  });
 
-  useEffect(() => {
-    fetchWorkshops();
-  }, []);
+  // 2. DELETE: Remove Workshop Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await axiosSecure.delete(`/workshops/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Workshop record deleted! 🗑️");
+      queryClient.invalidateQueries({ queryKey: ["workshops"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error("Error deleting item!");
+    },
+  });
+
+  // 3. PATCH: Update Workshop Mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const res = await axiosSecure.patch(`/workshops/${id}`, updatedData);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Workshop updated successfully! ✨");
+      setIsEditModalOpen(false);
+      setSelectedModalFile(null);
+      queryClient.invalidateQueries({ queryKey: ["workshops"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err.message || "Failed to update.");
+    },
+  });
 
   // Open View Modal
   const handleView = (item) => {
@@ -81,7 +107,7 @@ const AllWorkshops = () => {
     setIsEditModalOpen(true);
   };
 
-  // Handle Certificate Image File Selection (No Base64)
+  // Handle Certificate Image File Selection
   const handleModalFileProcess = (file) => {
     if (!file) return;
 
@@ -100,32 +126,15 @@ const AllWorkshops = () => {
     toast.success("New certificate image selected!");
   };
 
-  // DELETE: Remove Workshop
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this workshop record?"))
-      return;
-
-    try {
-      const res = await fetch(`http://localhost:3000/workshops/${id}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Failed to delete workshop.");
-
-      toast.success("Workshop record deleted! 🗑️");
-      setWorkshops((prev) =>
-        prev.filter((item) => (item.id || item._id) !== id)
-      );
-    } catch (err) {
-      console.error(err);
-      toast.error("Error deleting item!");
+  // Execute Delete
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this workshop record?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  // PATCH: Update Workshop with ImageBB Upload
+  // Execute Update Form Submission
   const onUpdateSubmit = async (data) => {
-    setUpdating(true);
-
     try {
       let finalCertificateUrl = data.certificateUrlInput || modalPreviewUrl || "";
 
@@ -160,27 +169,11 @@ const AllWorkshops = () => {
       };
 
       const targetId = selectedWorkshop.id || selectedWorkshop._id;
+      await updateMutation.mutateAsync({ id: targetId, updatedData });
 
-      const backendRes = await fetch(
-        `http://localhost:3000/workshops/${targetId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedData),
-        }
-      );
-
-      if (!backendRes.ok) throw new Error("Failed to update workshop data.");
-
-      toast.success("Workshop updated successfully! ✨");
-      setIsEditModalOpen(false);
-      setSelectedModalFile(null);
-      fetchWorkshops();
     } catch (err) {
       console.error(err);
       toast.error(err.message || "Failed to update.");
-    } finally {
-      setUpdating(false);
     }
   };
 
@@ -219,7 +212,7 @@ const AllWorkshops = () => {
         </div>
 
         {/* MAIN CONTENT AREA */}
-        {loading ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center p-16 bg-white rounded-3xl border border-emerald-100 shadow-xs">
             <Loader2 className="w-10 h-10 text-[#163A2D] animate-spin mb-3" />
             <p className="text-sm text-gray-500 font-semibold tracking-wide">
@@ -286,7 +279,8 @@ const AllWorkshops = () => {
                         </button>
                         <button
                           onClick={() => handleDelete(id)}
-                          className="p-2 text-rose-600 hover:bg-white hover:shadow-xs rounded-lg transition-all cursor-pointer"
+                          disabled={deleteMutation.isPending}
+                          className="p-2 text-rose-600 hover:bg-white hover:shadow-xs rounded-lg transition-all cursor-pointer disabled:opacity-50"
                           title="Delete Record"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -511,10 +505,10 @@ const AllWorkshops = () => {
 
               <button
                 type="submit"
-                disabled={updating}
+                disabled={updateMutation.isPending}
                 className="w-full py-3 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-bold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md disabled:opacity-70 mt-2"
               >
-                {updating ? (
+                {updateMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Updating Record...

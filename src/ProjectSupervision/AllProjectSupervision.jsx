@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Eye,
   Edit3,
@@ -13,14 +13,17 @@ import {
 } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import toast from "react-hot-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../hook/useAxiosSecure"; 
 
 const AllProjectSupervision = () => {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
   const [selectedProject, setSelectedProject] = useState(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [updating, setUpdating] = useState(false);
+  const [editImagePreview, setEditImagePreview] = useState(null);
 
   // Edit Modal Form Setup
   const {
@@ -38,40 +41,66 @@ const AllProjectSupervision = () => {
     name: "students",
   });
 
-  const [editImagePreview, setEditImagePreview] = useState(null);
   const selectedStatus = watch("status");
 
-  // Fetch Data from Server
-  const fetchProjects = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/project-supervision");
-      if (!res.ok) throw new Error("Failed to fetch data");
-      const data = await res.json();
-      setProjects(data);
-    } catch (err) {
+  // 1. Fetch Projects using TanStack useQuery + useAxiosSecure
+  const {
+    data: projects = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["project-supervisions"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/project-supervision");
+      return res.data;
+    },
+  });
+
+  // 2. Delete Mutation
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await axiosSecure.delete(`/project-supervision/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Supervision deleted successfully! 🗑️");
+      queryClient.invalidateQueries({ queryKey: ["project-supervisions"] });
+    },
+    onError: (err) => {
       console.error(err);
-      toast.error("Failed to load supervision list.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      toast.error(err?.response?.data?.message || err.message || "Error deleting item!");
+    },
+  });
 
-  useEffect(() => {
-    fetchProjects();
-  }, []);
+  // 3. Update Mutation
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const res = await axiosSecure.patch(`/project-supervision/${id}`, updatedData);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Supervision updated successfully! ✨");
+      queryClient.invalidateQueries({ queryKey: ["project-supervisions"] });
+      setIsEditModalOpen(false);
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || err.message || "Failed to update.");
+    },
+  });
 
-  // Open View Modal
+  // Actions
   const handleView = (project) => {
     setSelectedProject(project);
     setIsViewModalOpen(true);
   };
 
-  // Open Edit Modal
   const handleEdit = (project) => {
     setSelectedProject(project);
     reset({
       title: project.title,
-      status: project.status || "Ongoing", // Default status setup
+      status: project.status || "Ongoing",
       students: project.students || [{ name: "", regNo: "", session: "" }],
       imageFile: null,
     });
@@ -79,34 +108,12 @@ const AllProjectSupervision = () => {
     setIsEditModalOpen(true);
   };
 
-  // Delete Record
-  const handleDelete = async (id) => {
-    if (
-      !window.confirm(
-        "Are you sure you want to delete this supervision record?"
-      )
-    )
-      return;
-
-    try {
-      const res = await fetch(
-        `http://localhost:3000/project-supervision/${id}`,
-        {
-          method: "DELETE",
-        }
-      );
-
-      if (!res.ok) throw new Error("Failed to delete record.");
-
-      toast.success("Supervision deleted successfully! 🗑️");
-      setProjects((prev) => prev.filter((p) => p.id !== id && p._id !== id));
-    } catch (err) {
-      console.error(err);
-      toast.error("Error deleting item!");
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this supervision record?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  // Process image for Edit Form
   const handleEditImageChange = (e) => {
     const file = e.target.files[0];
     if (file && file.type.startsWith("image/")) {
@@ -117,14 +124,11 @@ const AllProjectSupervision = () => {
     }
   };
 
-  // Update Submission
   const onUpdateSubmit = async (data) => {
-    setUpdating(true);
-
     try {
       let imageUrl = editImagePreview;
 
-      // If user uploads new file to ImgBB
+      // Upload new file to ImgBB if changed
       if (data.imageFile) {
         const imgData = new FormData();
         imgData.append("image", data.imageFile);
@@ -140,45 +144,42 @@ const AllProjectSupervision = () => {
         const imgBbResult = await imgBbRes.json();
         if (imgBbResult.success) {
           imageUrl = imgBbResult.data.display_url;
+        } else {
+          throw new Error("Image upload failed.");
         }
       }
 
       const updatedData = {
         title: data.title,
-        status: data.status, // Included updated status
+        status: data.status,
         students: data.students,
         image: imageUrl,
       };
 
       const targetId = selectedProject.id || selectedProject._id;
 
-      const backendRes = await fetch(
-        `http://localhost:3000/project-supervision/${targetId}`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(updatedData),
-        }
-      );
-
-      if (!backendRes.ok) throw new Error("Failed to update project data.");
-
-      toast.success("Supervision updated successfully! ✨");
-      setIsEditModalOpen(false);
-      fetchProjects();
+      await updateMutation.mutateAsync({ id: targetId, updatedData });
     } catch (err) {
       console.error(err);
-      toast.error(err.message || "Failed to update.");
-    } finally {
-      setUpdating(false);
+      toast.error(err.message || "Failed to process update.");
     }
   };
+
+  if (isError) {
+    return (
+      <div className="w-full bg-[#F8FAFC] min-h-screen p-6 flex justify-center items-center">
+        <p className="text-rose-500 font-medium">
+          Error loading records: {error.message}
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full bg-[#F8FAFC] min-h-screen font-sans p-4 sm:p-6 lg:pr-24">
       <div className="max-w-5xl mx-auto space-y-6">
         {/* HEADER */}
-        <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
+        <div className="flex items-center justify-between bg-white p-6 rounded-2xl border border-emerald-100 shadow-xs">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-[#163A2D] text-amber-300 rounded-xl shadow-md">
               <FolderGit2 className="w-7 h-7" />
@@ -195,7 +196,7 @@ const AllProjectSupervision = () => {
         </div>
 
         {/* LIST CONTAINER */}
-        {loading ? (
+        {isLoading ? (
           <div className="flex flex-col items-center justify-center p-12 bg-white rounded-2xl border border-emerald-100">
             <Loader2 className="w-8 h-8 text-[#163A2D] animate-spin mb-2" />
             <p className="text-sm text-gray-500 font-medium">
@@ -211,11 +212,11 @@ const AllProjectSupervision = () => {
             {projects.map((project, index) => (
               <div
                 key={project.id || project._id || index}
-                className="bg-white rounded-2xl border border-emerald-100 shadow-sm p-6 space-y-4 hover:border-emerald-300 transition-all"
+                className="bg-white rounded-2xl border border-emerald-100 shadow-xs p-6 space-y-4 hover:border-emerald-300 transition-all"
               >
                 {/* Header Title + Status + Actions */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-100 pb-3">
-                  <div className="flex items-wrap items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base sm:text-lg font-bold text-[#163A2D]">
                       <span className="text-amber-500 mr-1.5">
                         {index + 1}. TITLE:
@@ -248,21 +249,22 @@ const AllProjectSupervision = () => {
                   <div className="flex items-center gap-2 self-end sm:self-auto">
                     <button
                       onClick={() => handleView(project)}
-                      className="p-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all"
+                      className="p-2 text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-xl transition-all cursor-pointer"
                       title="View Details"
                     >
                       <Eye className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleEdit(project)}
-                      className="p-2 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-all"
+                      className="p-2 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-xl transition-all cursor-pointer"
                       title="Edit Record"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleDelete(project.id || project._id)}
-                      className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all"
+                      disabled={deleteMutation.isPending}
+                      className="p-2 text-rose-600 bg-rose-50 hover:bg-rose-100 rounded-xl transition-all cursor-pointer disabled:opacity-50"
                       title="Delete Record"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -270,7 +272,7 @@ const AllProjectSupervision = () => {
                   </div>
                 </div>
 
-                {/* Student Info Display (ALL UPPERCASE) */}
+                {/* Student Info Display */}
                 <div className="space-y-3 font-sans">
                   <p className="text-xs font-bold uppercase text-gray-400">
                     STUDENT NAME:
@@ -311,11 +313,11 @@ const AllProjectSupervision = () => {
 
       {/* VIEW MODAL */}
       {isViewModalOpen && selectedProject && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl space-y-4">
             <button
               onClick={() => setIsViewModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -402,11 +404,11 @@ const AllProjectSupervision = () => {
 
       {/* EDIT MODAL */}
       {isEditModalOpen && selectedProject && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto relative shadow-2xl space-y-4">
             <button
               onClick={() => setIsEditModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -478,7 +480,7 @@ const AllProjectSupervision = () => {
                   <button
                     type="button"
                     onClick={() => append({ name: "", regNo: "", session: "" })}
-                    className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200"
+                    className="flex items-center gap-1 text-xs bg-emerald-50 text-emerald-800 px-2.5 py-1 rounded-lg border border-emerald-200 cursor-pointer"
                   >
                     <Plus className="w-3 h-3" /> Add Student
                   </button>
@@ -497,7 +499,7 @@ const AllProjectSupervision = () => {
                         <button
                           type="button"
                           onClick={() => remove(idx)}
-                          className="text-rose-500 p-1"
+                          className="text-rose-500 p-1 hover:bg-rose-50 rounded-lg cursor-pointer"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -561,10 +563,10 @@ const AllProjectSupervision = () => {
 
               <button
                 type="submit"
-                disabled={updating}
+                disabled={updateMutation.isPending}
                 className="w-full py-3 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-semibold rounded-xl text-sm transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-70"
               >
-                {updating ? (
+                {updateMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Updating...
