@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
-import { User, Mail, Lock, ArrowRight, Sparkles, KeyRound } from "lucide-react";
+import { User, Mail, Lock, ArrowRight, Sparkles, KeyRound, Loader2 } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../../firebase/firebase.init";
+import useAxiosPublic from "../../hooks/useAxiosPublic"; // আপনার Axios পাবলিক কাস্টম হুক ইম্পোর্ট করুন
 
 const Register = () => {
   const navigate = useNavigate();
+  const axiosPublic = useAxiosPublic();
   const [error, setError] = useState("");
 
   const {
@@ -41,8 +43,6 @@ const Register = () => {
         displayName: data.fullName,
       });
 
-      console.log("Firebase Registered User:", result.user);
-
       // 3. Prepare User Data for Database
       const newUser = {
         uid: result.user.uid,
@@ -52,25 +52,13 @@ const Register = () => {
         createdAt: new Date().toISOString(),
       };
 
-      // 4. Save User Data to Database (POST to localhost:3000/users)
-      const response = await fetch("http://localhost:3000/users", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newUser),
-      });
+      // 4. Save User Data to Database via Axios Instance
+      const res = await axiosPublic.post("/users", newUser);
 
-      const resData = await response.json();
-
-      if (!response.ok) {
-        throw new Error(resData.message || "Failed to save user in database.");
+      if (res.data.insertedId || res.status === 200 || res.status === 201) {
+        // 5. Redirect to login page on success
+        navigate("/login", { replace: true });
       }
-
-      console.log("Database Save Response:", resData);
-
-      // 5. Redirect to login page on success
-      navigate("/login", { replace: true });
     } catch (err) {
       console.error("Registration Error:", err);
       
@@ -82,7 +70,12 @@ const Register = () => {
       } else if (err.code === "auth/weak-password") {
         setError("Password must be at least 6 characters.");
       } else {
-        setError(err.message || "Registration failed. Please try again.");
+        // Axios error handling or generic error fallback
+        setError(
+          err.response?.data?.message || 
+          err.message || 
+          "Registration failed. Please try again."
+        );
       }
     }
   };
@@ -250,9 +243,17 @@ const Register = () => {
             disabled={isSubmitting}
             className="w-full mt-4 py-3.5 px-6 bg-[#163A2D] hover:bg-emerald-900 text-white font-bold rounded-xl shadow-lg shadow-emerald-900/20 active:scale-[0.99] transition-all duration-200 flex items-center justify-center gap-2 group cursor-pointer disabled:opacity-70"
           >
-            <span>{isSubmitting ? "Registering..." : "Register Account"}</span>
-
-            <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+            {isSubmitting ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-emerald-400" />
+                <span>Registering...</span>
+              </>
+            ) : (
+              <>
+                <span>Register Account</span>
+                <ArrowRight className="w-4 h-4 text-emerald-400 group-hover:translate-x-1 transition-transform" />
+              </>
+            )}
           </button>
         </form>
 
