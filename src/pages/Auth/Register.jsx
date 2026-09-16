@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { User, Mail, Lock, ArrowRight, Sparkles, KeyRound, Loader2 } from "lucide-react";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth } from "../../firebase/firebase.init";
-import useAxiosPublic from "../../hooks/useAxiosPublic"; // আপনার Axios পাবলিক কাস্টম হুক ইম্পোর্ট করুন
+import useAxiosPublic from "../../hook/useAxiosSecure"; // আপনার Axios পাবলিক কাস্টম হুক ইম্পোর্ট করুন
 
 const Register = () => {
   const navigate = useNavigate();

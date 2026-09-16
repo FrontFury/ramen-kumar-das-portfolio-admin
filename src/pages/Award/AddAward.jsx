@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useForm, Controller } from "react-hook-form";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Award, 
   Loader2, 
@@ -12,9 +13,12 @@ import {
   ChevronRight 
 } from "lucide-react";
 import toast from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AddAward = () => {
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -35,7 +39,6 @@ const AddAward = () => {
   });
 
   const [imagePreview, setImagePreview] = useState(null);
-  const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
   // Watched Values
@@ -62,6 +65,31 @@ const AddAward = () => {
   useEffect(() => {
     toast.dismiss();
   }, []);
+
+  // --- TanStack Query Mutation ---
+  const { mutateAsync: createAward, isPending: isSaving } = useMutation({
+    mutationFn: async (newAward) => {
+      const res = await axiosSecure.post("/awards", newAward);
+      return res.data;
+    },
+    onSuccess: () => {
+      // "awards" কুয়েরি ইনভ্যালিডেট করা হচ্ছে যেন লিস্ট পেজে নতুন ডাটা রিফ্লেক্ট করে
+      queryClient.invalidateQueries({ queryKey: ["awards"] });
+      toast.success("Award added successfully! 🎉");
+
+      reset();
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
+      setImagePreview(null);
+
+      setTimeout(() => {
+        navigate("/award/all");
+      }, 1500);
+    },
+    onError: (err) => {
+      console.error("Database Save Error:", err);
+      toast.error(err.response?.data?.message || err.message || "Failed to save award details.");
+    },
+  });
 
   // Date Selection Handler
   const handleDateSelect = (day) => {
@@ -99,6 +127,7 @@ const AddAward = () => {
   const processFile = (file) => {
     if (file && file.type.startsWith("image/")) {
       setValue("imageFile", file, { shouldValidate: true });
+      if (imagePreview) URL.revokeObjectURL(imagePreview);
       setImagePreview(URL.createObjectURL(file));
     } else {
       toast.error("Please select or drop a valid image file!");
@@ -129,14 +158,14 @@ const AddAward = () => {
 
   const handleRemoveImage = () => {
     setValue("imageFile", null, { shouldValidate: true });
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
     setImagePreview(null);
   };
 
   // Submit Handler
   const onSubmit = async (data) => {
-    setLoading(true);
-
     try {
+      // 1. ImageBB তে ছবি আপলোড
       const imgData = new FormData();
       imgData.append("image", data.imageFile);
 
@@ -156,6 +185,7 @@ const AddAward = () => {
 
       const imageUrl = imgBbResult.data.display_url;
 
+      // 2. অ্যাওয়ার্ডের ডাটা অবজেক্ট তৈরি
       const newAward = {
         title: data.title,
         organization: data.organization,
@@ -165,32 +195,12 @@ const AddAward = () => {
         createdAt: new Date().toISOString(),
       };
 
-      const backendRes = await fetch("http://localhost:3000/awards", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newAward),
-      });
-
-      if (!backendRes.ok) {
-        throw new Error("Failed to save award details to the server.");
-      }
-
-      toast.success("Award added successfully! 🎉");
-
-      reset();
-      setImagePreview(null);
-
-      setTimeout(() => {
-        navigate("/award/all");
-      }, 3000);
+      // 3. TanStack Mutation এর মাধ্যমে ব্যাকএন্ডে পাঠানো
+      await createAward(newAward);
 
     } catch (err) {
       console.error("Submission Error:", err);
       toast.error(err.message || "Something went wrong!");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -452,10 +462,10 @@ const AddAward = () => {
             <div className="flex justify-end pt-4">
               <button
                 type="submit"
-                disabled={loading}
+                disabled={isSaving}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-semibold text-sm rounded-xl transition-all shadow-md disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
               >
-                {loading ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Uploading & Saving...</span>
