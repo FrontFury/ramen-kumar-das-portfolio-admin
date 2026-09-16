@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   Trash2, 
   Edit3, 
@@ -17,124 +17,49 @@ import {
   ImageIcon
 } from "lucide-react";
 import toast, { Toaster } from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AllResearch = () => {
-  const [researches, setResearches] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
   const [activeImage, setActiveImage] = useState(null);
-  
-  // Edit & Modal States
   const [editingItem, setEditingItem] = useState(null);
   const [editFormData, setEditFormData] = useState({});
   const [selectedFile, setSelectedFile] = useState(null);
-  const [updating, setUpdating] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  const navigate = useNavigate();
+  // TanStack Query GET: Fetch Researches
+  const { data: researches = [], isLoading: loading } = useQuery({
+    queryKey: ["researches"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/researches");
+      return res.data;
+    },
+  });
 
-  const fetchResearches = async () => {
-    try {
-      const response = await axios.get("http://localhost:3000/researches");
-      setResearches(response.data);
-    } catch (err) {
-      toast.error("Failed to load research items!");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchResearches();
-  }, []);
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this research publication?")) return;
-
-    try {
-      await axios.delete(`http://localhost:3000/researches/${id}`);
+  // TanStack Mutation DELETE: Delete Research
+  const { mutate: deleteResearch } = useMutation({
+    mutationFn: async (id) => {
+      await axiosSecure.delete(`/researches/${id}`);
+    },
+    onSuccess: () => {
       toast.success("Publication deleted successfully!");
-      setResearches((prev) => prev.filter((item) => (item._id || item.id) !== id));
-    } catch (err) {
-      toast.error("Failed to delete publication!");
-    }
-  };
+      queryClient.invalidateQueries({ queryKey: ["researches"] });
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to delete publication!");
+    },
+  });
 
-  // Open Edit Modal & populate state
-  const handleEditClick = (item) => {
-    setEditingItem(item);
-    setSelectedFile(null);
-    setEditFormData({
-      title: item.title || "",
-      authors: item.authors || "",
-      conference: item.conference || "",
-      eventDate: item.eventDate || "",
-      location: item.location || "",
-      certificateUrl: item.certificateUrl || "",
-    });
-  };
-
-  // Input change handler
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setEditFormData((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // Process selected image file
-  const handleFileProcess = (file) => {
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please upload a valid image file!");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image size should be less than 5MB");
-      return;
-    }
-
-    setSelectedFile(file);
-    setEditFormData((prev) => ({
-      ...prev,
-      certificateUrl: URL.createObjectURL(file),
-    }));
-    toast.success("New certificate image selected!");
-  };
-
-  // Drag & Drop Handlers
-  const handleDragOver = (e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  };
-
-  const handleDragLeave = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-  };
-
-  const handleDrop = (e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileProcess(e.dataTransfer.files[0]);
-    }
-  };
-
-  const removeImage = () => {
-    setSelectedFile(null);
-    setEditFormData((prev) => ({ ...prev, certificateUrl: "" }));
-  };
-
-  // Submit PATCH Request with ImageBB Upload
-  const handlePatchSubmit = async (e) => {
-    e.preventDefault();
-    const id = editingItem._id || editingItem.id;
-    setUpdating(true);
-
-    try {
+  // TanStack Mutation PATCH: Update Research
+  const { mutate: updateResearch, isPending: updating } = useMutation({
+    mutationFn: async () => {
+      const id = editingItem._id || editingItem.id;
       let finalCertificateUrl = editFormData.certificateUrl;
 
-      // ইউজার লোকাল ডিভাইস থেকে কোনো ইমেজ ফাইল সিলেক্ট করলে ImageBB তে আপলোড হবে
       if (selectedFile) {
         const imgData = new FormData();
         imgData.append("image", selectedFile);
@@ -162,22 +87,92 @@ const AllResearch = () => {
         updatedAt: new Date().toISOString(),
       };
 
-      await axios.patch(`http://localhost:3000/researches/${id}`, payload);
-      
-      // Local state update
-      setResearches((prev) =>
-        prev.map((item) => ((item._id || item.id) === id ? { ...item, ...payload } : item))
-      );
-
+      const res = await axiosSecure.patch(`/researches/${id}`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
       toast.success("Publication updated successfully!");
       setEditingItem(null);
       setSelectedFile(null);
-    } catch (err) {
+      queryClient.invalidateQueries({ queryKey: ["researches"] });
+    },
+    onError: (err) => {
       console.error("Patch Error:", err);
       toast.error(err.message || "Failed to update publication!");
-    } finally {
-      setUpdating(false);
+    },
+  });
+
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this research publication?")) {
+      deleteResearch(id);
     }
+  };
+
+  const handleEditClick = (item) => {
+    setEditingItem(item);
+    setSelectedFile(null);
+    setEditFormData({
+      title: item.title || "",
+      authors: item.authors || "",
+      conference: item.conference || "",
+      eventDate: item.eventDate || "",
+      location: item.location || "",
+      certificateUrl: item.certificateUrl || "",
+    });
+  };
+
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleFileProcess = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload a valid image file!");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image size should be less than 5MB");
+      return;
+    }
+
+    setSelectedFile(file);
+    setEditFormData((prev) => ({
+      ...prev,
+      certificateUrl: URL.createObjectURL(file),
+    }));
+    toast.success("New certificate image selected!");
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFileProcess(e.dataTransfer.files[0]);
+    }
+  };
+
+  const removeImage = () => {
+    setSelectedFile(null);
+    setEditFormData((prev) => ({ ...prev, certificateUrl: "" }));
+  };
+
+  const handlePatchSubmit = (e) => {
+    e.preventDefault();
+    updateResearch();
   };
 
   if (loading) {
@@ -319,7 +314,7 @@ const AllResearch = () => {
         })}
       </div>
 
-      {/* PATCH Edit Modal with Drag & Drop */}
+      {/* EDIT MODAL */}
       {editingItem && (
         <div className="fixed inset-0 z-[99999] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-gray-100 space-y-6 relative my-8">
