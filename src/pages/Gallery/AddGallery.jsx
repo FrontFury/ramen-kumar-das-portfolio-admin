@@ -1,18 +1,20 @@
 import React, { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
-import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   ImagePlus, Tag, Type, MapPin, Calendar, 
   Upload, CheckCircle2, Loader2, Sparkles, X 
 } from "lucide-react";
+import useAxiosSecure from "../../hook/useAxiosSecure";
 
 const AddGallery = () => {
-  const [loading, setLoading] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -27,6 +29,25 @@ const AddGallery = () => {
       location: "",
       date: "",
       imageUrlInput: ""
+    }
+  });
+
+  // TanStack Query Mutation for posting gallery data
+  const { mutate: addGalleryItem, isPending: loading } = useMutation({
+    mutationFn: async (payload) => {
+      const res = await axiosSecure.post("/gallery", payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Gallery item added successfully! ✨");
+      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      reset();
+      handleClearImage();
+      setTimeout(() => navigate("/gallery/all"), 1000);
+    },
+    onError: (err) => {
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Failed to add gallery item.");
     }
   });
 
@@ -53,7 +74,7 @@ const AddGallery = () => {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const onSubmit = async (data) => {
+  const onSubmit = (data) => {
     const finalImageUrl = imageUrl || data.imageUrlInput;
     
     if (!finalImageUrl) {
@@ -61,30 +82,15 @@ const AddGallery = () => {
       return;
     }
 
-    setLoading(true);
-    try {
-      const payload = {
-        category: data.category,
-        title: data.title,
-        location: data.location,
-        date: data.date,
-        imageUrl: finalImageUrl,
-      };
+    const payload = {
+      category: data.category,
+      title: data.title,
+      location: data.location,
+      date: data.date,
+      imageUrl: finalImageUrl,
+    };
 
-      const res = await axios.post("http://localhost:3000/gallery", payload);
-
-      if (res.status === 201 || res.status === 200) {
-        toast.success("Gallery item added successfully! ✨");
-        reset();
-        handleClearImage();
-        setTimeout(() => navigate("/gallery/all"), 1000);
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to add gallery item.");
-    } finally {
-      setLoading(false);
-    }
+    addGalleryItem(payload);
   };
 
   return (
@@ -198,7 +204,7 @@ const AddGallery = () => {
                 className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-emerald-600 focus:bg-white rounded-xl text-xs font-medium text-slate-800 focus:outline-none transition-all"
               />
 
-              {(imageUrl || errors.imageUrlInput) && (
+              {imageUrl && (
                 <div className="mt-3 relative rounded-xl overflow-hidden border border-emerald-200 h-44 bg-slate-900/5 flex items-center justify-center">
                   <img src={imageUrl} alt="Preview" className="h-full w-full object-cover" />
                   <button
