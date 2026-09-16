@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../../hooks/useAxiosSecure"; // আপনার ফাইল পাথ অনুযায়ী টিউন করে নেবেন
 import { 
   GraduationCap, 
   Building2, 
@@ -19,12 +20,12 @@ import toast, { Toaster } from "react-hot-toast";
 const AddAcademic = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
+
   const editData = location.state?.academic || null;
 
-  const [loading, setLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-
-  // ইমেজ ফাইল এবং প্রিভিউ ম্যানেজমেন্টের জন্য নতুন স্টেট
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
 
@@ -51,12 +52,36 @@ const AddAcademic = () => {
     }
   }, [editData]);
 
+  // TanStack Query Mutation for Create / Update
+  const academicMutation = useMutation({
+    mutationFn: async (payload) => {
+      const id = editData?._id || editData?.id;
+      if (editData) {
+        const res = await axiosSecure.patch(`/academics/${id}`, payload);
+        return res.data;
+      } else {
+        const res = await axiosSecure.post("/academics", payload);
+        return res.data;
+      }
+    },
+    onSuccess: () => {
+      // Academics সংক্রান্ত সকল ক্যাশডাটা ইনভ্যালিডেট করবে
+      queryClient.invalidateQueries({ queryKey: ["academics"] });
+      toast.success(editData ? "Academic qualification updated!" : "Academic qualification added!");
+      setTimeout(() => navigate("/academic/all"), 1200);
+    },
+    onError: (err) => {
+      console.error("Submission error:", err);
+      toast.error(err.response?.data?.message || err.message || (editData ? "Failed to update record!" : "Failed to add record!"));
+    },
+  });
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
     if (name === "certificateUrl") {
       setPreviewUrl(value);
-      setSelectedFile(null); // ম্যানুয়াল URL দিলে নির্বাচন করা ফাইল বাদ হয়ে যাবে
+      setSelectedFile(null);
     }
   };
 
@@ -108,14 +133,11 @@ const AddAcademic = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
-    const id = editData?._id || editData?.id;
 
     try {
       let finalCertificateUrl = formData.certificateUrl;
 
-      // যদি ইউজার লোকাল ডিভাইস থেকে কোনো ইমেজ ফাইল সিলেক্ট করে থাকে
+      // ImgBB Upload Process
       if (selectedFile) {
         const imgData = new FormData();
         imgData.append("image", selectedFile);
@@ -142,19 +164,12 @@ const AddAcademic = () => {
         certificateUrl: finalCertificateUrl,
       };
 
-      if (editData) {
-        await axios.patch(`http://localhost:3000/academics/${id}`, payload);
-        toast.success("Academic qualification updated!");
-      } else {
-        await axios.post("http://localhost:3000/academics", payload);
-        toast.success("Academic qualification added!");
-      }
-      setTimeout(() => navigate("/academic/all"), 1200);
+      // Mutation Triggering
+      academicMutation.mutate(payload);
+
     } catch (err) {
-      console.error("Submission error:", err);
-      toast.error(err.message || (editData ? "Failed to update record!" : "Failed to add record!"));
-    } finally {
-      setLoading(false);
+      console.error("Image upload error:", err);
+      toast.error(err.message || "Failed to upload image!");
     }
   };
 
@@ -334,10 +349,10 @@ const AddAcademic = () => {
         <div className="pt-4 flex justify-end">
           <button
             type="submit"
-            disabled={loading}
+            disabled={academicMutation.isPending}
             className="px-6 py-3 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-[#0D251D] font-extrabold text-sm rounded-2xl shadow-lg flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {academicMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             {editData ? "Update Record" : "Save Record"}
           </button>
         </div>
