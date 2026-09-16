@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import useAxiosSecure from "../../hooks/useAxiosSecure"; // আপনার ফাইল পাথ অনুযায়ী টিউন করে নেবেন
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 import { 
   GraduationCap, 
   Building2, 

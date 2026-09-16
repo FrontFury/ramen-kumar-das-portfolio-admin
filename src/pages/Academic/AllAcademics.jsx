@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import useAxiosSecure from "../../hook/useAxiosSecure";
 import { 
   GraduationCap, 
   Building2, 
   BookOpen, 
   Award, 
   Calendar, 
-  Plus, 
   Edit3, 
   Trash2, 
   Maximize2, 
@@ -20,14 +20,12 @@ import {
 import toast, { Toaster } from "react-hot-toast";
 
 const AllAcademic = () => {
-  const [academics, setAcademics] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeImage, setActiveImage] = useState(null);
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
-  // Modal & Edit State
+  const [activeImage, setActiveImage] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [updateLoading, setUpdateLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -39,22 +37,49 @@ const AllAcademic = () => {
     certificateUrl: "",
   });
 
-  const fetchAcademics = async () => {
-    try {
-      const response = await axios.get("http://localhost:3000/academics");
-      setAcademics(response.data);
-    } catch (err) {
-      toast.error("Failed to load academic records!");
-    }  finally {
-      setLoading(false);
-    }
-  };
+  // 1. TanStack Query for Fetching Data
+  const { data: academics = [], isLoading } = useQuery({
+    queryKey: ["academics"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/academics");
+      return res.data;
+    },
+  });
 
-  useEffect(() => {
-    fetchAcademics();
-  }, []);
+  // 2. TanStack Mutation for Updating Record (PATCH)
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const res = await axiosSecure.patch(`/academics/${id}`, updatedData);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academics"] });
+      toast.success("Academic qualification updated!");
+      handleCloseModal();
+    },
+    onError: (err) => {
+      console.error("PATCH Error:", err);
+      toast.error(err.response?.data?.message || "Failed to update record!");
+    },
+  });
 
-  // Open Modal for Edit
+  // 3. TanStack Mutation for Deleting Record (DELETE)
+  const deleteMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await axiosSecure.delete(`/academics/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academics"] });
+      toast.success("Academic record deleted successfully!");
+    },
+    onError: (err) => {
+      console.error("DELETE Error:", err);
+      toast.error(err.response?.data?.message || "Failed to delete record!");
+    },
+  });
+
+  // Modal Controls
   const handleOpenEditModal = (item) => {
     const id = item._id || item.id;
     setEditingId(id);
@@ -69,7 +94,6 @@ const AllAcademic = () => {
     setIsModalOpen(true);
   };
 
-  // Close Modal & Reset Form
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingId(null);
@@ -135,48 +159,20 @@ const AllAcademic = () => {
     setFormData((prev) => ({ ...prev, certificateUrl: "" }));
   };
 
-  // Submit PATCH Request
-  const handlePatchSubmit = async (e) => {
+  // Submit PATCH Handler
+  const handlePatchSubmit = (e) => {
     e.preventDefault();
-    setUpdateLoading(true);
+    updateMutation.mutate({ id: editingId, updatedData: formData });
+  };
 
-    try {
-      const response = await axios.patch(
-        `http://localhost:3000/academics/${editingId}`,
-        formData
-      );
-
-      toast.success("Academic qualification updated!");
-
-      // Update local state UI without full refetch
-      setAcademics((prev) =>
-        prev.map((item) =>
-          (item._id || item.id) === editingId ? { ...item, ...formData } : item
-        )
-      );
-
-      handleCloseModal();
-    } catch (err) {
-      console.error("PATCH Error:", err.response?.data || err.message);
-      toast.error("Failed to update record!");
-    } finally {
-      setUpdateLoading(false);
+  // Submit DELETE Handler
+  const handleDelete = (id) => {
+    if (window.confirm("Are you sure you want to delete this academic record?")) {
+      deleteMutation.mutate(id);
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this academic record?")) return;
-
-    try {
-      await axios.delete(`http://localhost:3000/academics/${id}`);
-      toast.success("Academic record deleted successfully!");
-      setAcademics((prev) => prev.filter((item) => (item._id || item.id) !== id));
-    } catch (err) {
-      toast.error("Failed to delete record!");
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-[70vh] flex flex-col items-center justify-center gap-4">
         <div className="relative flex items-center justify-center">
@@ -316,7 +312,8 @@ const AllAcademic = () => {
                     </button>
                     <button
                       onClick={() => handleDelete(id)}
-                      className="px-4 py-2 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all duration-300 shadow-sm hover:shadow-rose-600/20 active:scale-95 cursor-pointer"
+                      disabled={deleteMutation.isPending}
+                      className="px-4 py-2 bg-rose-50 hover:bg-rose-600 text-rose-600 hover:text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all duration-300 shadow-sm hover:shadow-rose-600/20 active:scale-95 cursor-pointer disabled:opacity-50"
                     >
                       <Trash2 className="w-3.5 h-3.5" /> Delete
                     </button>
@@ -494,10 +491,10 @@ const AllAcademic = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={updateLoading}
+                  disabled={updateMutation.isPending}
                   className="px-6 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-[#0D251D] font-extrabold text-xs rounded-xl shadow-md flex items-center gap-2 cursor-pointer transition-all disabled:opacity-50"
                 >
-                  {updateLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  {updateMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                   Update Qualification
                 </button>
               </div>
