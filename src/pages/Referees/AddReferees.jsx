@@ -1,8 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { useForm } from "react-hook-form";
-import axios from "axios";
 import toast, { Toaster } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   UserCheck, 
   Tag, 
@@ -16,10 +16,12 @@ import {
   Loader2, 
   Sparkles 
 } from "lucide-react";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AddReferees = () => {
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   const {
     register,
@@ -28,24 +30,28 @@ const AddReferees = () => {
     formState: { errors },
   } = useForm();
 
-  const onSubmit = async (data) => {
-    setLoading(true);
-    try {
-      const res = await axios.post("http://localhost:3000/referees", data);
-
-      if (res.status === 201 || res.status === 200) {
-        toast.success("Referee added successfully! ✨");
-        reset();
-        setTimeout(() => {
-          navigate("/referees/all");
-        }, 1000);
-      }
-    } catch (err) {
+  // TanStack Query Mutation for posting referee data
+  const { mutate: addReferee, isPending: loading } = useMutation({
+    mutationFn: async (payload) => {
+      const res = await axiosSecure.post("/referees", payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Referee added successfully! ✨");
+      queryClient.invalidateQueries({ queryKey: ["referees"] });
+      reset();
+      setTimeout(() => {
+        navigate("/referees/all");
+      }, 1000);
+    },
+    onError: (err) => {
       console.error(err);
-      toast.error("Failed to add referee.");
-    } finally {
-      setLoading(false);
-    }
+      toast.error(err?.response?.data?.message || "Failed to add referee.");
+    },
+  });
+
+  const onSubmit = (data) => {
+    addReferee(data);
   };
 
   return (
