@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Trophy,
   Eye,
@@ -11,11 +12,12 @@ import {
   Building,
   Check,
 } from "lucide-react";
-import toast from "react-hot-toast"; // 👈 Toaster সরানো হয়েছে, শুধু toast থাকবে
+import toast from "react-hot-toast";
+import useAxiosSecure from "../../hook/useAxiosSecure"; 
 
 const AllAwards = () => {
-  const [awards, setAwards] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const axiosSecure = useAxiosSecure();
+  const queryClient = useQueryClient();
 
   // Modal States
   const [viewAward, setViewAward] = useState(null);
@@ -32,30 +34,67 @@ const AllAwards = () => {
   });
   const [newImageFile, setNewImageFile] = useState(null);
   const [editImagePreview, setEditImagePreview] = useState(null);
-  const [actionLoading, setActionLoading] = useState(false);
 
   const IMGBB_API_KEY = import.meta.env.VITE_image_host_key || "YOUR_IMGBB_API_KEY";
 
-  // 1. Fetch All Awards
-  const fetchAwards = async () => {
-    try {
-      const res = await fetch("http://localhost:3000/awards");
-      if (!res.ok) throw new Error("Failed to fetch awards");
-      const data = await res.json();
-      setAwards(data);
-    } catch (err) {
-      toast.error(err.message || "Failed to load awards");
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Clear toasts on mount
   useEffect(() => {
-    toast.dismiss(); // 👈 পেজ লোড হওয়ামাত্রই পূর্বের ঝুলে থাকা টোস্ট ক্লিয়ার হবে
-    fetchAwards();
+    toast.dismiss();
   }, []);
 
-  // 2. Open Edit Modal
+  // 1. Fetch All Awards using TanStack Query
+  const {
+    data: awards = [],
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
+    queryKey: ["awards"],
+    queryFn: async () => {
+      const res = await axiosSecure.get("/awards");
+      return res.data;
+    },
+  });
+
+  // 2. Mutation: Update Award (PATCH)
+  const updateAwardMutation = useMutation({
+    mutationFn: async ({ id, updatedData }) => {
+      const res = await axiosSecure.patch(`/awards/${id}`, updatedData);
+      return res.data;
+    },
+    onSuccess: (data) => {
+      if (data?.success || data) {
+        toast.success("Award updated successfully! 🎉");
+        queryClient.invalidateQueries({ queryKey: ["awards"] });
+        setEditAward(null);
+      } else {
+        toast.error(data?.message || "Failed to update award");
+      }
+    },
+    onError: (err) => {
+      console.error("Update Error:", err);
+      toast.error(err.response?.data?.message || err.message || "Update failed!");
+    },
+  });
+
+  // 3. Mutation: Delete Award (DELETE)
+  const deleteAwardMutation = useMutation({
+    mutationFn: async (id) => {
+      const res = await axiosSecure.delete(`/awards/${id}`);
+      return res.data;
+    },
+    onSuccess: () => {
+      toast.success("Award deleted successfully!");
+      queryClient.invalidateQueries({ queryKey: ["awards"] });
+      setDeleteAwardId(null);
+    },
+    onError: (err) => {
+      console.error("Delete Error:", err);
+      toast.error(err.response?.data?.message || err.message || "Delete failed!");
+    },
+  });
+
+  // Open Edit Modal
   const handleOpenEdit = (award) => {
     setEditAward(award);
     setEditForm({
@@ -69,10 +108,9 @@ const AllAwards = () => {
     setNewImageFile(null);
   };
 
-  // 3. Update Award Handler (PATCH)
+  // Submit Handler for Update
   const handleUpdate = async (e) => {
     e.preventDefault();
-    setActionLoading(true);
 
     try {
       let finalImageUrl = editForm.image;
@@ -104,58 +142,31 @@ const AllAwards = () => {
         image: finalImageUrl,
       };
 
-      // ৩. ব্যাকএন্ডের PATCH রুটে রিকোয়েস্ট পাঠানো
-      const res = await fetch(`http://localhost:3000/awards/${editAward._id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(updatedData),
+      // ৩. Mutation ট্রিগার করা
+      await updateAwardMutation.mutateAsync({
+        id: editAward._id,
+        updatedData,
       });
-
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        throw new Error(data.message || "Failed to update award");
-      }
-
-      // সফল হলে UI আপডেট
-      toast.success("Award updated successfully! 🎉");
-      setEditAward(null);
-      fetchAwards();
     } catch (err) {
-      console.error("Update Error:", err);
-      toast.error(err.message || "Update failed!");
-    } finally {
-      setActionLoading(false);
+      toast.error(err.message || "An error occurred during update.");
     }
   };
 
-  // 4. Delete Award (DELETE)
-  const handleDelete = async () => {
-    if (!deleteAwardId) return;
-    setActionLoading(true);
-
-    try {
-      const res = await fetch(`http://localhost:3000/awards/${deleteAwardId}`, {
-        method: "DELETE",
-      });
-
-      if (!res.ok) throw new Error("Failed to delete award");
-
-      toast.success("Award deleted successfully!");
-      setDeleteAwardId(null);
-      setAwards((prev) => prev.filter((item) => item._id !== deleteAwardId));
-    } catch (err) {
-      toast.error(err.message || "Delete failed");
-    } finally {
-      setActionLoading(false);
+  // Submit Handler for Delete
+  const handleDelete = () => {
+    if (deleteAwardId) {
+      deleteAwardMutation.mutate(deleteAwardId);
     }
   };
+
+  if (isError) {
+    toast.error(error?.message || "Failed to load awards");
+  }
 
   return (
     <div className="w-full bg-[#F8FAFC] min-h-screen font-sans p-4 sm:p-6 lg:pr-24">
       <div className="max-w-5xl mx-auto space-y-6">
+        
         {/* HEADER SECTION */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-emerald-100 shadow-sm">
           <div className="flex items-center gap-4">
@@ -178,7 +189,7 @@ const AllAwards = () => {
 
         {/* TABLE CARD */}
         <div className="bg-white rounded-2xl border border-emerald-100 shadow-sm overflow-hidden">
-          {loading ? (
+          {isLoading ? (
             <div className="flex flex-col items-center justify-center p-12 space-y-3">
               <Loader2 className="w-8 h-8 text-emerald-700 animate-spin" />
               <p className="text-sm font-semibold text-gray-500">
@@ -248,21 +259,21 @@ const AllAwards = () => {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => setViewAward(award)}
-                            className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors"
+                            className="p-2 text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
                             title="View Details"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleOpenEdit(award)}
-                            className="p-2 text-amber-700 hover:bg-amber-50 rounded-lg transition-colors"
+                            className="p-2 text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
                             title="Edit Award"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => setDeleteAwardId(award._id)}
-                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
+                            className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
                             title="Delete Award"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -284,7 +295,7 @@ const AllAwards = () => {
           <div className="bg-white rounded-2xl max-w-2xl w-full p-6 space-y-5 border border-emerald-100 shadow-2xl relative animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setViewAward(null)}
-              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg z-10 bg-white/80"
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg z-10 bg-white/80 cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -322,7 +333,7 @@ const AllAwards = () => {
           <div className="bg-white rounded-2xl max-w-xl w-full p-6 space-y-4 border border-emerald-100 shadow-2xl relative animate-in fade-in zoom-in-95 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setEditAward(null)}
-              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              className="absolute top-4 right-4 p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -431,16 +442,16 @@ const AllAwards = () => {
                 <button
                   type="button"
                   onClick={() => setEditAward(null)}
-                  className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+                  className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={actionLoading}
-                  className="px-5 py-2 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-semibold text-sm rounded-xl flex items-center gap-2"
+                  disabled={updateAwardMutation.isPending}
+                  className="px-5 py-2 bg-[#163A2D] hover:bg-[#0C2219] text-amber-300 font-semibold text-sm rounded-xl flex items-center gap-2 cursor-pointer disabled:opacity-70"
                 >
-                  {actionLoading ? (
+                  {updateAwardMutation.isPending ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
                   ) : (
                     <Check className="w-4 h-4" />
@@ -472,16 +483,18 @@ const AllAwards = () => {
             <div className="flex justify-center gap-3 pt-2">
               <button
                 onClick={() => setDeleteAwardId(null)}
-                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl"
+                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 onClick={handleDelete}
-                disabled={actionLoading}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded-xl flex items-center gap-2"
+                disabled={deleteAwardMutation.isPending}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm rounded-xl flex items-center gap-2 cursor-pointer disabled:opacity-70"
               >
-                {actionLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {deleteAwardMutation.isPending && (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                )}
                 <span>Delete Award</span>
               </button>
             </div>
