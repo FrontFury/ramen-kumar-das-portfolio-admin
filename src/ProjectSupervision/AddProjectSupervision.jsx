@@ -11,10 +11,12 @@ import {
   Plus,
   CheckCircle2,
   Clock,
+  FileText,
+  Presentation,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import useAxiosSecure from "../hook/useAxiosSecure"; 
+import useAxiosSecure from "../hook/useAxiosSecure";
 
 const AddProjectSupervision = () => {
   const navigate = useNavigate();
@@ -32,8 +34,10 @@ const AddProjectSupervision = () => {
   } = useForm({
     defaultValues: {
       title: "",
-      status: "Ongoing", // Default Status
+      status: "Ongoing",
       students: [{ name: "", regNo: "", session: "" }],
+      reportUrl: "",
+      presentationUrl: "",
       imageFile: null,
     },
   });
@@ -53,7 +57,6 @@ const AddProjectSupervision = () => {
     toast.dismiss();
   }, []);
 
-  // TanStack Query Mutation for posting data
   const addSupervisionMutation = useMutation({
     mutationFn: async (newSupervision) => {
       const res = await axiosSecure.post("/project-supervision", newSupervision);
@@ -115,7 +118,6 @@ const AddProjectSupervision = () => {
     try {
       let imageUrl = "";
 
-      // Upload image to ImageBB if selected
       if (data.imageFile) {
         const imgData = new FormData();
         imgData.append("image", data.imageFile);
@@ -140,11 +142,12 @@ const AddProjectSupervision = () => {
         title: data.title,
         status: data.status,
         students: data.students,
-        image: imageUrl,
+        image: imageUrl, // Database-e image key-te save hobe
+        reportUrl: data.reportUrl || "",
+        presentationUrl: data.presentationUrl || "",
         createdAt: new Date().toISOString(),
       };
 
-      // Trigger mutation
       await addSupervisionMutation.mutateAsync(newSupervision);
     } catch (err) {
       console.error(err);
@@ -201,7 +204,7 @@ const AddProjectSupervision = () => {
                   )}
                 </div>
 
-                {/* STATUS SELECTION BUTTONS */}
+                {/* STATUS SELECTION */}
                 <div>
                   <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
                     Project Status <span className="text-rose-500">*</span>
@@ -248,8 +251,7 @@ const AddProjectSupervision = () => {
               <div className="space-y-4">
                 <div className="flex items-center justify-between border-b border-gray-100 pb-2">
                   <label className="block text-xs font-bold uppercase text-gray-600">
-                    Students Information{" "}
-                    <span className="text-rose-500">*</span>
+                    Students Information <span className="text-rose-500">*</span>
                   </label>
                   <button
                     type="button"
@@ -326,6 +328,39 @@ const AddProjectSupervision = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* REPORT URL & PRESENTATION URL FIELDS */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
+                    Full Report URL (Optional)
+                  </label>
+                  <div className="relative">
+                    <FileText className="w-4 h-4 absolute left-3.5 top-3 text-gray-400" />
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/file/d/..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-600 rounded-xl text-sm focus:outline-none focus:bg-white transition-all"
+                      {...register("reportUrl")}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-2">
+                    Presentation URL (Optional)
+                  </label>
+                  <div className="relative">
+                    <Presentation className="w-4 h-4 absolute left-3.5 top-3 text-gray-400" />
+                    <input
+                      type="url"
+                      placeholder="https://docs.google.com/presentation/d/..."
+                      className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 focus:border-emerald-600 rounded-xl text-sm focus:outline-none focus:bg-white transition-all"
+                      {...register("presentationUrl")}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* DRAG AND DROP IMAGE */}

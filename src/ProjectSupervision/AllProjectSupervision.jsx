@@ -10,11 +10,14 @@ import {
   Upload,
   Clock,
   CheckCircle2,
+  FileText,
+  Presentation,
+  ExternalLink,
 } from "lucide-react";
 import { useForm, useFieldArray } from "react-hook-form";
 import toast from "react-hot-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import useAxiosSecure from "../hook/useAxiosSecure"; 
+import useAxiosSecure from "../hook/useAxiosSecure";
 
 const AllProjectSupervision = () => {
   const axiosSecure = useAxiosSecure();
@@ -102,6 +105,8 @@ const AllProjectSupervision = () => {
       title: project.title,
       status: project.status || "Ongoing",
       students: project.students || [{ name: "", regNo: "", session: "" }],
+      reportUrl: project.reportUrl || "",
+      presentationUrl: project.presentationUrl || "",
       imageFile: null,
     });
     setEditImagePreview(project.image || null);
@@ -153,6 +158,8 @@ const AllProjectSupervision = () => {
         title: data.title,
         status: data.status,
         students: data.students,
+        reportUrl: data.reportUrl || "",
+        presentationUrl: data.presentationUrl || "",
         image: imageUrl,
       };
 
@@ -295,6 +302,36 @@ const AllProjectSupervision = () => {
                   ))}
                 </div>
 
+                {/* Resource Links Display */}
+                {(project.reportUrl || project.presentationUrl) && (
+                  <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-50">
+                    {project.reportUrl && (
+                      <a
+                        href={project.reportUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-semibold transition-all"
+                      >
+                        <FileText className="w-3.5 h-3.5" />
+                        <span>Full Report</span>
+                        <ExternalLink className="w-3 h-3 ml-0.5" />
+                      </a>
+                    )}
+                    {project.presentationUrl && (
+                      <a
+                        href={project.presentationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-xl text-xs font-semibold transition-all"
+                      >
+                        <Presentation className="w-3.5 h-3.5" />
+                        <span>Presentation Slide</span>
+                        <ExternalLink className="w-3 h-3 ml-0.5" />
+                      </a>
+                    )}
+                  </div>
+                )}
+
                 {/* Project Image Poster */}
                 {project.image && (
                   <div className="pt-2">
@@ -384,6 +421,41 @@ const AllProjectSupervision = () => {
                   ))}
                 </div>
               </div>
+
+              {/* View Resources */}
+              {(selectedProject.reportUrl || selectedProject.presentationUrl) && (
+                <div>
+                  <p className="text-xs font-bold uppercase text-gray-400 mb-2">
+                    RESOURCES & LINKS
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {selectedProject.reportUrl && (
+                      <a
+                        href={selectedProject.reportUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 rounded-xl text-xs font-bold transition-all"
+                      >
+                        <FileText className="w-4 h-4" />
+                        View Full Report
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                    {selectedProject.presentationUrl && (
+                      <a
+                        href={selectedProject.presentationUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200 rounded-xl text-xs font-bold transition-all"
+                      >
+                        <Presentation className="w-4 h-4" />
+                        View Presentation
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {selectedProject.image && (
                 <div>
@@ -534,6 +606,39 @@ const AllProjectSupervision = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Edit Report URL & Presentation URL */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">
+                    Full Report URL (Optional)
+                  </label>
+                  <div className="relative">
+                    <FileText className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="url"
+                      placeholder="https://drive.google.com/..."
+                      className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                      {...register("reportUrl")}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold uppercase text-gray-600 mb-1">
+                    Presentation URL (Optional)
+                  </label>
+                  <div className="relative">
+                    <Presentation className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+                    <input
+                      type="url"
+                      placeholder="https://docs.google.com/..."
+                      className="w-full pl-9 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs focus:outline-none focus:border-emerald-600"
+                      {...register("presentationUrl")}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Edit Image Upload */}

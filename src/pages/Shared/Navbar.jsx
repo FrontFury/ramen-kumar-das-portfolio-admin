@@ -21,7 +21,9 @@ import {
   Contact,
   LogOut,
   UserGroup,
-  UserRoundKey
+  UserRoundKey,
+  FolderPlus,
+  FolderGit2
 } from "lucide-react";
 
 const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
@@ -34,6 +36,8 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
     { id: "all-membership", label: "All MemberShip", icon: UserRoundKey, path: "/membership/all" },
     { id: "add-award", label: "Add Award", icon: Award, path: "/award/add" },
     { id: "all-award", label: "All Award", icon: Trophy, path: "/award/all" },
+    { id: "add-project-supervision", label: "Add Project Supervision", icon: FolderPlus, path: "/project-supervision/add" },
+    { id: "all-project-supervision", label: "All Project Supervision", icon: FolderGit2, path: "/project-supervision/all" },
     { id: "add-experience", label: "Add Experience", icon: Briefcase, path: "/experience/add" },
     { id: "all-experience", label: "All Experience", icon: History, path: "/experience/all" },
     { id: "add-tools", label: "Add Tools", icon: Wrench, path: "/tools/add" },
@@ -55,15 +59,10 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
   const onLogoutClick = async () => {
     setIsOpen(false);
     try {
-      // 1. Clear Tanstack Query Cache
       queryClient.clear();
-
-      // 2. Await logout complete
       if (handleLogout) {
         await handleLogout();
       }
-
-      // 3. Force hard redirect to login page & clear window history
       navigate("/login", { replace: true });
     } catch (error) {
       console.error("Logout failed", error);
@@ -86,9 +85,12 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
           fixed z-50 transition-all duration-300 ease-in-out
           top-20 right-4 left-4 flex flex-col p-2.5
           bg-[#163A2D]/95 backdrop-blur-xl border border-emerald-800/60 rounded-2xl shadow-2xl gap-1.5 
-          max-h-[75vh] overflow-y-auto scrollbar-none
+          max-h-[75vh] overflow-y-auto
 
-          lg:left-auto lg:top-1/2 lg:right-4 lg:-translate-y-1/2 lg:w-auto lg:items-end lg:gap-1 lg:bg-transparent lg:border-none lg:p-0 lg:shadow-none lg:backdrop-blur-none lg:max-h-[85vh] lg:overflow-y-auto lg:pr-1
+          /* LARGE SCREEN ADJUSTMENTS */
+          lg:left-auto lg:top-1/2 lg:-translate-y-1/2 lg:right-4 lg:w-auto lg:items-end lg:gap-1 lg:bg-transparent lg:border-none lg:p-0 lg:shadow-none lg:backdrop-blur-none 
+          lg:max-h-[calc(100vh-2rem)] lg:pr-1 lg:py-2
+          
           [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden
 
           ${
@@ -108,12 +110,12 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
               end={item.path === "/"}
               onClick={() => setIsOpen(false)}
               className={({ isActive }) => `
-                group relative flex items-center transition-all duration-200 ease-in-out w-full lg:w-auto
+                group relative flex items-center transition-all duration-150 ease-in-out w-full lg:w-auto
 
                 ${
                   isActive
-                    ? `bg-[#0C2219] text-amber-300 font-semibold px-3 py-1.5 lg:py-1 rounded-xl border border-amber-400/50 shadow-md shadow-amber-500/10 justify-start lg:justify-center`
-                    : `text-emerald-100 hover:text-amber-200 hover:bg-emerald-900/60 p-2 lg:p-1.5 rounded-xl lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center`
+                    ? `bg-[#0C2219] text-amber-300 font-semibold px-3 py-1.5 lg:py-1.5 lg:px-2.5 rounded-xl border border-amber-400/50 shadow-md shadow-amber-500/10 justify-start lg:justify-center`
+                    : `text-emerald-100 hover:text-amber-200 hover:bg-emerald-900/60 p-2 lg:p-1.5 lg:px-2 rounded-xl lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center`
                 }
               `}
             >
@@ -149,7 +151,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
         {/* LOGOUT BUTTON */}
         <button
           onClick={onLogoutClick}
-          className="group relative flex items-center transition-all duration-200 ease-in-out w-full lg:w-auto p-2 lg:p-1.5 rounded-xl text-red-200 hover:text-red-300 hover:bg-red-900/60 lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center cursor-pointer mt-0.5"
+          className="group relative flex items-center transition-all duration-150 ease-in-out w-full lg:w-auto p-2 lg:p-1.5 lg:px-2 rounded-xl text-red-200 hover:text-red-300 hover:bg-red-900/60 lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center cursor-pointer mt-0.5"
         >
           <LogOut className="w-4 h-4 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px] shrink-0 text-red-400 stroke-2 group-hover:text-red-300 transition-colors" />
 
