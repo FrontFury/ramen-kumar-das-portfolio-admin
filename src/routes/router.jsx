@@ -1,4 +1,4 @@
-import { createBrowserRouter, redirect } from "react-router-dom";
+import { createBrowserRouter, Navigate } from "react-router-dom";
 
 import { AdminLayout } from "../layout/AdminLayout";
 import ProtectedRoute from "./ProtectedRoute";
@@ -21,7 +21,6 @@ import AllCourses from "../pages/Courses/AllCourses";
 import AddExperience from "../pages/Experience/AddExperience";
 import AllExperiences from "../pages/Experience/AllExperiences";
 
-// 📌 Workshop Components Import
 import AddWorkshops from "../pages/Workshops/AddWorkshops";
 import AllWorkshops from "../pages/Workshops/AllWorkshops";
 
@@ -38,6 +37,8 @@ import AddTools from "../pages/Tools/AddTools";
 import AllTools from "../pages/Tools/AllTools";
 
 import Users from "../pages/Users/Users";
+import AddMemberShip from "../pages/MemberShip/AddMemberShip";
+import AllMemberShip from "../pages/MemberShip/AllMemberShip";
 
 export const router = createBrowserRouter([
   // Public routes
@@ -60,9 +61,20 @@ export const router = createBrowserRouter([
         children: [
           {
             index: true,
-            loader: () => redirect("/admin/all-users"),
+            element: <Navigate to="/admin/all-users" replace />,
           },
-
+          {
+            path: "admin/all-users", 
+            element: <Users />,
+          },
+          {
+            path: "membership/add", 
+            element: <AddMemberShip/>,
+          },
+          {
+            path: "/membership/all", 
+            element: <AllMemberShip/>,
+          },
           {
             path: "academic/add",
             element: <AddAcademic />,
@@ -71,7 +83,6 @@ export const router = createBrowserRouter([
             path: "academic/all",
             element: <AllAcademics />,
           },
-
           {
             path: "award/add",
             element: <AddAward />,
@@ -80,7 +91,6 @@ export const router = createBrowserRouter([
             path: "award/all",
             element: <AllAwards />,
           },
-
           {
             path: "project-supervision/add",
             element: <AddProjectSupervision />,
@@ -89,7 +99,6 @@ export const router = createBrowserRouter([
             path: "project-supervision/all",
             element: <AllProjectSupervision />,
           },
-
           {
             path: "courses/add",
             element: <AddCourses />,
@@ -98,7 +107,6 @@ export const router = createBrowserRouter([
             path: "courses/all",
             element: <AllCourses />,
           },
-
           {
             path: "experience/add",
             element: <AddExperience />,
@@ -107,7 +115,6 @@ export const router = createBrowserRouter([
             path: "experience/all",
             element: <AllExperiences />,
           },
-
           {
             path: "workshops/add",
             element: <AddWorkshops />,
@@ -116,7 +123,6 @@ export const router = createBrowserRouter([
             path: "workshops/all",
             element: <AllWorkshops />,
           },
-
           {
             path: "gallery/add",
             element: <AddGallery />,
@@ -125,7 +131,6 @@ export const router = createBrowserRouter([
             path: "gallery/all",
             element: <AllGallery />,
           },
-
           {
             path: "referees/add",
             element: <AddReferees />,
@@ -134,7 +139,6 @@ export const router = createBrowserRouter([
             path: "referees/all",
             element: <AllReferees />,
           },
-
           {
             path: "research/add",
             element: <AddResearch />,
@@ -143,7 +147,6 @@ export const router = createBrowserRouter([
             path: "research/all",
             element: <AllResearch />,
           },
-
           {
             path: "tools/add",
             element: <AddTools />,
@@ -151,11 +154,6 @@ export const router = createBrowserRouter([
           {
             path: "tools/all",
             element: <AllTools />,
-          },
-
-          {
-            path: "/admin/all-users",
-            element: <Users />,
           },
         ],
       },

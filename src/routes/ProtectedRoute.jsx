@@ -1,5 +1,5 @@
 import React from "react";
-import { Navigate, Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext/AuthContext";
 import useRole from "../hook/useRole";
 import AccessDenied from "../pages/AccessDenied/AccessDenied";
@@ -7,6 +7,7 @@ import AccessDenied from "../pages/AccessDenied/AccessDenied";
 const ProtectedRoute = () => {
   const { user, loading } = useAuth();
   const { role, roleLoading } = useRole();
+  const location = useLocation();
 
   if (loading || roleLoading) {
     return (
@@ -17,7 +18,7 @@ const ProtectedRoute = () => {
   }
 
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
   if (role !== "admin") {

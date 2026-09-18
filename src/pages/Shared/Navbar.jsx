@@ -1,5 +1,6 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Users,
   Award,
@@ -19,39 +20,55 @@ import {
   UserCheck,
   Contact,
   LogOut,
+  UserGroup,
+  UserRoundKey
 } from "lucide-react";
 
 const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const navItems = [
     { id: "users", label: "Users", icon: Users, path: "/admin/all-users" },
-
+    { id: "add-membership", label: "Add MemberShip", icon: UserGroup, path: "/membership/add" },
+    { id: "all-membership", label: "All MemberShip", icon: UserRoundKey, path: "/membership/all" },
     { id: "add-award", label: "Add Award", icon: Award, path: "/award/add" },
     { id: "all-award", label: "All Award", icon: Trophy, path: "/award/all" },
-
     { id: "add-experience", label: "Add Experience", icon: Briefcase, path: "/experience/add" },
     { id: "all-experience", label: "All Experience", icon: History, path: "/experience/all" },
-
     { id: "add-tools", label: "Add Tools", icon: Wrench, path: "/tools/add" },
     { id: "all-tools", label: "All Tools", icon: Boxes, path: "/tools/all" },
-
     { id: "add-research", label: "Add Research", icon: BookOpen, path: "/research/add" },
     { id: "all-research", label: "All Research", icon: Library, path: "/research/all" },
-
     { id: "add-courses", label: "Add Courses", icon: GraduationCap, path: "/courses/add" },
     { id: "all-courses", label: "All Courses", icon: School, path: "/courses/all" },
-
     { id: "add-academic", label: "Add Academic", icon: GraduationCap, path: "/academic/add" },
     { id: "all-academics", label: "All Academics", icon: School, path: "/academic/all" },
-
     { id: "add-workshops", label: "Add Workshops", icon: Presentation, path: "/workshops/add" },
     { id: "all-workshops", label: "All Workshops", icon: MonitorPlay, path: "/workshops/all" },
-
     { id: "add-gallery", label: "Add Gallery", icon: Image, path: "/gallery/add" },
     { id: "all-gallery", label: "All Gallery", icon: FolderKanban, path: "/gallery/all" },
-
     { id: "add-referees", label: "Add Referees", icon: UserCheck, path: "/referees/add" },
     { id: "all-referees", label: "All Referees", icon: Contact, path: "/referees/all" },
   ];
+
+  const onLogoutClick = async () => {
+    setIsOpen(false);
+    try {
+      // 1. Clear Tanstack Query Cache
+      queryClient.clear();
+
+      // 2. Await logout complete
+      if (handleLogout) {
+        await handleLogout();
+      }
+
+      // 3. Force hard redirect to login page & clear window history
+      navigate("/login", { replace: true });
+    } catch (error) {
+      console.error("Logout failed", error);
+    }
+  };
 
   return (
     <>
@@ -117,7 +134,7 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
                     {item.label}
                   </span>
 
-                  {/* Desktop Hover Tooltip with Goldish Color */}
+                  {/* Desktop Hover Tooltip */}
                   {!isActive && (
                     <span className="hidden lg:block absolute right-12 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-amber-300 text-xs py-1 px-2.5 rounded-lg border border-amber-400/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
                       {item.label}
@@ -131,20 +148,15 @@ const Navbar = ({ isOpen, setIsOpen, handleLogout }) => {
 
         {/* LOGOUT BUTTON */}
         <button
-          onClick={() => {
-            setIsOpen(false);
-            handleLogout();
-          }}
+          onClick={onLogoutClick}
           className="group relative flex items-center transition-all duration-200 ease-in-out w-full lg:w-auto p-2 lg:p-1.5 rounded-xl text-red-200 hover:text-red-300 hover:bg-red-900/60 lg:bg-[#163A2D]/90 lg:border lg:border-emerald-800/60 lg:backdrop-blur-md justify-start lg:justify-center cursor-pointer mt-0.5"
         >
           <LogOut className="w-4 h-4 sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px] shrink-0 text-red-400 stroke-2 group-hover:text-red-300 transition-colors" />
 
-          {/* Label for Mobile Menu */}
           <span className="ml-3 text-sm whitespace-nowrap tracking-wide font-['Playfair_Display',serif] inline-block lg:hidden font-bold text-red-300">
             Logout
           </span>
 
-          {/* Desktop Hover Tooltip */}
           <span className="hidden lg:block absolute right-12 opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none bg-[#163A2D] text-red-300 text-xs py-1 px-2.5 rounded-lg border border-red-500/40 whitespace-nowrap shadow-xl font-['Playfair_Display',serif] font-semibold">
             Logout
           </span>

@@ -45,8 +45,6 @@ const Login = () => {
         formData.password
       );
 
-      console.log("Logged In User:", result.user);
-
       // Redirect to originally requested page
       const from = location.state?.from?.pathname || "/";
 
