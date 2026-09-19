@@ -8,6 +8,7 @@ const categories = [
   { id: "ml-ai", label: "ML & AI / Vision" },
   { id: "nlp-sec", label: "NLP & Security" },
   { id: "prog-web", label: "Languages & Web" },
+  { id: "code-editor", label: "Code Editor" }, // <--- Code Editor added
   { id: "research", label: "Research & Tools" },
   { id: "db-office", label: "DB & Office" },
 ];
@@ -33,13 +34,16 @@ const AllTools = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   // GET Query
-  const { data: tools = [], isLoading } = useQuery({
+  const { data: rawTools = [], isLoading } = useQuery({
     queryKey: ["tools"],
     queryFn: async () => {
       const res = await axiosSecure.get("/tools");
       return res.data;
     },
   });
+
+  // Reverse tools array so newly created items appear first
+  const tools = Array.isArray(rawTools) ? [...rawTools].reverse() : [];
 
   // PATCH Mutation
   const updateToolMutation = useMutation({

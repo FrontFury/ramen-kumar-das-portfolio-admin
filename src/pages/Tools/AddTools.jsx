@@ -10,6 +10,7 @@ const initialCategories = [
   { id: "ml-ai", label: "ML & AI / Vision" },
   { id: "nlp-sec", label: "NLP & Security" },
   { id: "prog-web", label: "Languages & Web" },
+  { id: "code-editor", label: "Code Editor" }, // <--- New Category Added Here
   { id: "research", label: "Research & Tools" },
   { id: "db-office", label: "DB & Office" },
 ];
