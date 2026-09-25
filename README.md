@@ -1,16 +1,45 @@
-# React + Vite
+# Ramen Kumar Das
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Administrator | Systems & Operations Specialist**
 
-Currently, two official plugins are available:
+Dedicated Administrative and Operations Professional with expertise in managing workflow efficiency, organizational logistics, database administration, and team support. Experienced in streamlining administrative processes to maximize productivity and maintain high operational standards.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+---
 
-## React Compiler
+## 🛠️ Core Competencies & Skills
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+* **Administrative Management:** Workflow Optimization, Resource Allocation, Facility Management
+* **Technical Skills:** MS Office Suite (Word, Excel, PowerPoint), Google Workspace, ERP Systems, CRM Management
+* **Data & Records Management:** Record Keeping, File Archiving, Database Administration, Reporting
+* **Communication:** Cross-Functional Coordination, Client Relations, Vendor Management
+* **Financial Support:** Petty Cash Management, Expense Tracking, Basic Bookkeeping
 
-## Expanding the ESLint configuration
+---
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## 💼 Professional Experience
+
+### **Administrative Officer / System Administrator**
+*Company Name* | *Location*  
+*Month Year – Present*
+
+* Managed daily administrative operations, ensuring smooth workflow and effective department communication.
+* Maintained physical and digital record filing systems with 100% compliance and confidentiality standards.
+* Coordinated vendor relationships, contract renewals, and procurement of office supplies.
+* Processed weekly and monthly administrative expense reports and inventory audits.
+
+---
+
+## 🎓 Education & Certifications
+
+* **Bachelor’s Degree** in [Your Major/Field]  
+  *University Name, Year*
+* **Certification in Office Administration / IT Management** (Optional)  
+  *Issuing Body, Year*
+
+---
+
+## 📬 Contact Information
+
+* **Email:** [ramen.das@example.com](mailto:ramen.das@example.com)
+* **LinkedIn:** [linkedin.com/in/ramenkumardas](https://linkedin.com/in/)
+* **Phone:** +123 456 7890
